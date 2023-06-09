@@ -3,6 +3,7 @@ from PyQt5.QtCore import QObject,pyqtSignal,QThread
 from threading import Thread
 from function import *
 import sys
+import zipfile
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -19,6 +20,38 @@ class MainWindow(QtWidgets.QMainWindow):
         self.Menu_Online_Ping.triggered.connect(self.ping_thread)
         #ping action
         self.Menu_Online_Post.triggered.connect(self.post_thread)
+        self.Menu_File_Open.triggered.connect(self.open_offline_file)
+        self.schoolCodeSelection.currentIndexChanged.connect(self.choose_school)
+        
+
+    def open_offline_file(self):
+        filePath, fileType = QtWidgets.QFileDialog.getOpenFileName(self, "Choose File", os.getcwd(), "Zip Files(*.zip);;All Files (*)")
+        try:
+            self.current_file = zipfile.ZipFile(filePath)
+            with self.current_file.open("metadata.json") as meta:
+                # Get run time in metadata.json, get school list from file names
+                runTime = json.load(meta)["runTime"]
+                originalList = self.current_file.namelist()
+                originalList.remove("metadata.json")
+                schoolList = list(map(lambda l:l[0:-5], [l for l in originalList]))
+                self.schoolCodeSelection.clear()
+                self.schoolCodeSelection.addItems(schoolList)
+
+            self.filePathLabel.setText(filePath)
+            self.fileTimeLabel.setText(time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(runTime)))
+            #TODO: load the file into memory
+
+        except KeyError:
+            self.information_box("The file can't be parsed.","Error")
+        except ValueError as e:
+            self.information_box(str(e),"Error")
+
+    def choose_school(self):
+        with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
+            data = json.load(file)
+            self.schoolName.setText(data["schoolName"])
+    
+
 
     def post_thread(self):
         self.statusbar.showMessage("Sending POST method to API.")

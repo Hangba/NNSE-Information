@@ -92,7 +92,7 @@
      <string>Not Initialized!</string>
     </property>
    </widget>
-   <widget class="QComboBox" name="SchoolCodeSelection">
+   <widget class="QComboBox" name="schoolCodeSelection">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -128,7 +128,7 @@
      </font>
     </property>
    </widget>
-   <widget class="QLabel" name="SchoolName">
+   <widget class="QLabel" name="schoolName">
     <property name="geometry">
      <rect>
       <x>270</x>
@@ -241,7 +241,7 @@
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
-      <widget class="QLabel" name="filePath">
+      <widget class="QLabel" name="filePathLabel">
        <property name="font">
         <font>
          <family>Consolas</family>
@@ -253,7 +253,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QLabel" name="fileTime">
+      <widget class="QLabel" name="fileTimeLabel">
        <property name="font">
         <font>
          <family>Consolas</family>
