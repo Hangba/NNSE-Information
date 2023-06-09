@@ -29,6 +29,11 @@
       <height>31</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <family>Consolas</family>
+     </font>
+    </property>
     <property name="text">
      <string>Initialize</string>
     </property>
@@ -38,9 +43,14 @@
      <rect>
       <x>10</x>
       <y>50</y>
-      <width>161</width>
+      <width>191</width>
       <height>20</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Consolas</family>
+     </font>
     </property>
     <property name="text">
      <string>Information file path:</string>
@@ -55,6 +65,11 @@
       <height>20</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <family>Consolas</family>
+     </font>
+    </property>
     <property name="text">
      <string>Information time:</string>
     </property>
@@ -68,6 +83,11 @@
       <height>31</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <family>Consolas</family>
+     </font>
+    </property>
     <property name="text">
      <string>Not Initialized!</string>
     </property>
@@ -80,6 +100,11 @@
       <width>241</width>
       <height>26</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Consolas</family>
+     </font>
     </property>
     <property name="currentText">
      <string/>
@@ -97,6 +122,11 @@
       <height>321</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <family>Consolas</family>
+     </font>
+    </property>
    </widget>
    <widget class="QLabel" name="SchoolName">
     <property name="geometry">
@@ -106,6 +136,11 @@
       <width>511</width>
       <height>21</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Consolas</family>
+     </font>
     </property>
     <property name="text">
      <string>School Name</string>
@@ -120,6 +155,11 @@
       <height>31</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <family>Consolas</family>
+     </font>
+    </property>
     <property name="text">
      <string>Get Current Information</string>
     </property>
@@ -132,6 +172,11 @@
       <width>121</width>
       <height>31</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Consolas</family>
+     </font>
     </property>
     <property name="text">
      <string>Set Work Path</string>
@@ -156,6 +201,11 @@
       <height>31</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <family>Consolas</family>
+     </font>
+    </property>
     <property name="text">
      <string>Status Number(1~4):</string>
     </property>
@@ -169,24 +219,34 @@
       <height>31</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <family>Consolas</family>
+     </font>
+    </property>
     <property name="markdown">
-     <string>4
+     <string>`4`
 
 </string>
     </property>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
-      <x>180</x>
+      <x>200</x>
       <y>50</y>
-      <width>611</width>
+      <width>591</width>
       <height>51</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
       <widget class="QLabel" name="filePath">
+       <property name="font">
+        <font>
+         <family>Consolas</family>
+        </font>
+       </property>
        <property name="text">
         <string/>
        </property>
@@ -194,6 +254,11 @@
      </item>
      <item>
       <widget class="QLabel" name="fileTime">
+       <property name="font">
+        <font>
+         <family>Consolas</family>
+        </font>
+       </property>
        <property name="text">
         <string/>
        </property>
@@ -224,7 +289,7 @@
      <string>Online</string>
     </property>
     <addaction name="Menu_Online_Ping"/>
-    <addaction name="Menu_Online_Send"/>
+    <addaction name="Menu_Online_Post"/>
    </widget>
    <addaction name="menuTest"/>
    <addaction name="menuTest_2"/>
@@ -240,9 +305,9 @@
     <string>Ping nnzkzs.com</string>
    </property>
   </action>
-  <action name="Menu_Online_Send">
+  <action name="Menu_Online_Post">
    <property name="text">
-    <string>Send Get to nnzkzs.com</string>
+    <string>Test for API</string>
    </property>
   </action>
   <action name="Menu_File_Save">
