@@ -1,6 +1,10 @@
 import requests
 import json
 from pythonping import ping
+import shutil
+import time
+import os
+import inspect
 
 
 def ping_host(*args):
@@ -37,7 +41,8 @@ def post(schoolCode, status):
         general_list_available = False
 
     url3 = "http://www.nnzkzs.com/api/services/app/vocationalPublicity/GetPublicity"
-    #Test for API which is used to get vocational school information
+    # Test for API which is used to get vocational school information
+    
     try:
         res=requests.post(url3)
         vocational_list_available = res.json()['success']
@@ -49,8 +54,54 @@ def post(schoolCode, status):
     General School Information API Availablity: {str(general_list_available)}
     Vocational School Information API Availablity: {str(vocational_list_available)}"""
 
+def get_single_school_data(schoolCode:int,status:int):
+    # Get the single school data online and return it
+    # Data structure:{"schoolCode" : schoolCode, "schoolName":schoolName, "instruction" : list...}
+    data = dict()
+    types = ["instruction","directional","guide"]
+    for t in types:
+        d = {'schoolCode':schoolCode,"type":t,"status":status}
+        url=f"http://www.nnzkzs.com/api/services/app/publicityDetail/GetGeneralDetail?schoolCode={str(schoolCode)}&type={t}&status={status}"
+        try:
+            res=requests.post(url,data=d)
+            data["schoolName"] = json.loads(res.json()["result"])["schoolName"] # Get school name
+            data[t] = json.loads(res.json()["result"])["lists"] # Get registeration data            
+        except Exception as e:
+            print(e)
+    return data
+
+def get_save_single_school_data(schoolCode:int,status:int,filepath = "\\"):
+    # Get the single school data online and save to {schoolCode}.json
+    data = get_single_school_data(schoolCode, status)
+    with open(f"{filepath}{schoolCode}.json","w", encoding="utf8") as f:
+        json.dump(data,f)
+
+def get_sequence_school_data(schoolList:list,status:int,savePath = "\\saves\\"):
+    # Get registeration data of schools in the schoolList and compress them into a zip file {time stamp}.zip
+    currentPath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0)))
+    filePath = currentPath+"\\TEMP\\"
+    # Make a temporary folder. If it exists, delete the folder and make again.
+    if not os.path.exists(filePath):
+        os.mkdir(filePath)
+    else:
+        shutil.rmtree(filePath)
+        os.mkdir(filePath)
     
+    for sc in schoolList:
+        get_save_single_school_data(sc,status,filePath)
+    with open(f"{filePath}metadata.json","w",encoding="utf8") as f:
+        # create metadata file
+        json.dump({"runTime":time.time()},f)
+    
+    shutil.make_archive(str(int(time.time())), "zip",filePath) # Create zip file
+    if not os.path.exists(currentPath+savePath):
+        os.mkdir(currentPath+savePath)
+    shutil.move(currentPath+"\\"+str(int(time.time()))+".zip", currentPath+savePath)
+    shutil.rmtree(filePath) # Delete the temporary folder
 
 
-def initialize():
+def initialise():
+    pass
+
+def open_file():
     pass
