@@ -6,6 +6,16 @@ import shutil
 import time
 import os
 import inspect
+from PyQt5 import QtWidgets
+
+def information_box(information, title = "Information"):
+    box = QtWidgets.QMessageBox()
+    box.setText(information)
+    box.setWindowTitle(title)
+    box.setIcon(QtWidgets.QMessageBox.Information)
+    box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+    box.exec_()
+
 
 
 def ping_host(*args):
@@ -56,19 +66,26 @@ def get_single_school_data(schoolCode:int,status:int):
         url=f"http://www.nnzkzs.com/api/services/app/publicityDetail/GetGeneralDetail?schoolCode={str(schoolCode)}&type={t}&status={status}"
         try:
             res=requests.post(url,data=d)
+            if res.status_code == 502:
+                raise BufferError
             if not bool(res.json()["result"]):
                 continue
             data["schoolName"] = json.loads(res.json()["result"])["schoolName"] # Get school name
             data[t] = json.loads(res.json()["result"])["lists"] # Get registeration data            
         except TypeError as e:
             print(e)
+        except BufferError:
+            return None
     return data
 
 def get_save_single_school_data(schoolCode:int,status:int,filepath = "\\"):
     # Get the single school data online and save to {schoolCode}.json
     data = get_single_school_data(schoolCode, status)
-    with open(f"{filepath}{schoolCode}.json","w", encoding="utf8") as f:
-        json.dump(data,f)
+    if data != None and data != {}:
+        with open(f"{filepath}{schoolCode}.json","w", encoding="utf8") as f:
+            json.dump(data,f)
+    else:
+        return None
     return data
 
 def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\saves\\"):
@@ -88,14 +105,16 @@ def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\
     for sc in schoolList:
         #TODO: create a new window to show the progress
         #print(schoolList.index(sc)/len(schoolList))  #out put progress
+
         data = get_save_single_school_data(sc,status,filePath)
-        for t in types:
-            if t in list(data.keys()):
-                total[t]+=data[t]  # save all to total.json
+        if data != None:
+            for t in types:
+                if t in list(data.keys()):
+                    total[t]+=data[t]  # save all to total.json
 
     with open(f"{filePath}metadata.json","w",encoding="utf8") as f:
         # create metadata file
-        json.dump({"runTime":time.time()},f)
+        json.dump({"runTime":time.time(),"status":status},f)
     
     with open(f"{filePath}Total.json","w",encoding="utf8") as f:
         # create metadata file

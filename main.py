@@ -20,7 +20,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ifinitialise = False
         self.Menu_Online_Ping.triggered.connect(self.ping_thread)
         self.Menu_Online_Post.triggered.connect(self.post_thread)
-        self.Menu_File_Open.triggered.connect(self.open_offline_file)
+        self.Menu_File_Open.triggered.connect(self.select_file)
         self.schoolCodeSelection.currentIndexChanged.connect(self.choose_school)
         self.getCurrent.clicked.connect(self.get_current_information)
         self.initialisation.clicked.connect(self.initialise_thread)
@@ -29,30 +29,42 @@ class MainWindow(QtWidgets.QMainWindow):
     def get_current_information(self):
         self.status = self.StatusNum.toPlainText()
         if self.ifinitialise:
-            self.statusbar.showMessage("Getting general school data")
-            #general school information
+            # Determining whether to initialize
             self.get_thread = QThread()
-            self.get_worker = GetAll_Worker(self.schoolCodeList[0],self.status,"\\saves\\")
+            if self.isGeneral.isChecked():
+            #general school information
+                self.statusbar.showMessage("Getting general schools' registeration data.")
+                self.get_worker = GetAll_Worker(self.schoolCodeList[0],self.status,"\\saves\\")
+            else:
+                self.statusbar.showMessage("Getting vocational schools' registeration data.")
+                self.get_worker = GetAll_Worker(self.schoolCodeList[1],self.status,"\\saves\\")
             self.get_worker.moveToThread(self.get_thread)
             self.get_thread.started.connect(self.get_worker.run)
             self.get_worker.finished.connect(self.get_thread.quit)
             self.get_thread.finished.connect(self.get_thread.deleteLater)
             self.get_worker.result.connect(self.get_current_information_slot)
             self.get_thread.start()
-
         else:
             self.information_box("You haven't initialised!","Error")
 
     def get_current_information_slot(self,fileName,savePath):
         self.statusbar.showMessage("Finish.")
-        self.information_box("Get current registeration data successfully.")
-        
         self.open_offline_file(self.currentPath+savePath+fileName+".zip")
+        if self.isGeneral.isChecked():
+            
+            num = len(self.schoolCodeList[0])
+        else:
+            num = len(self.schoolCodeList[1])
+        lack = num - len(self.realschoolList) + 1
+        if lack == 0:
+            self.information_box("Get current registeration data successfully.")
+        else:
+            self.information_box(f"Get current registeration data incompletely successfully.{len(self.realschoolList) - 1}/{num}")
+        
 
     def select_file(self):
-        filePath, fileType = QtWidgets.QFileDialog.getOpenFileName(self, "Choose File", os.getcwd(), "Zip Files(*.zip);;All Files (*)")
+        filePath, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose File", os.getcwd(), "Zip Files(*.zip);;All Files (*.*)")
         self.open_offline_file(filePath)
-
 
     def open_offline_file(self,filePath):
         try:
@@ -62,13 +74,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 runTime = json.load(meta)["runTime"]
                 originalList = self.current_file.namelist()
                 originalList.remove("metadata.json")
-                schoolList = list(map(lambda l:l[0:-5], [l for l in originalList]))
+                self.realschoolList = list(map(lambda l:l[0:-5], [l for l in originalList])) # the school exists actually, include Total.json
                 self.schoolCodeSelection.clear()
-                self.schoolCodeSelection.addItems(schoolList)
+                self.schoolCodeSelection.addItems(self.realschoolList)
 
             self.filePathLabel.setText(filePath)
             self.fileTimeLabel.setText(time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(runTime)))
-            #TODO: load the file into memory
 
         except KeyError:
             self.information_box("The file can't be parsed.","Error")
@@ -76,10 +87,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self.information_box(str(e),"Error")
 
     def choose_school(self):
-        with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
-            data = json.load(file)
-            self.schoolName.setText(data["schoolName"])
-            self.get_current_school()
+        if self.schoolCodeSelection.currentText()!="":
+            #Reopening another file when one is already open will cause the ComboBox to call this function, resulting in an error
+            with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
+                data = json.load(file)
+                if "schoolName" in list(data.keys()):
+                    self.schoolName.setText(data["schoolName"])
+                else:
+                    self.schoolName.setText("This school's name doesn't exist.")
+                
+                self.get_current_school()
     
     def initialise_thread(self):
         self.statusbar.showMessage("Initialising...")
@@ -89,10 +106,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.init_thread.started.connect(self.init_worker.run)
         self.init_worker.finished.connect(self.init_thread.quit)
         self.init_thread.finished.connect(self.init_thread.deleteLater)
-        self.init_worker.result.connect(lambda *args: self.initialisation_finish_up(*args))
+        self.init_worker.result.connect(lambda *args: self.initialisation_slot(*args))
         self.init_thread.start()
 
-    def initialisation_finish_up(self,schoolCodeList):
+    def initialisation_slot(self,schoolCodeList):
         self.ifinitialise = True
         self.schoolCodeList = schoolCodeList
         self.ifInitialised.setText("Initialised.")
