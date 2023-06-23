@@ -13,7 +13,7 @@ class MainWindow(QtWidgets.QMainWindow):
         uic.loadUi("ui.ui",self)
         self.show()
 
-        self.types = ["instruction","directional","guide"]
+        self.types = ["instruction","directional","alter","guide"]
         self.status = self.StatusNum.toPlainText()
         self.currentPath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0)))
         #register types
@@ -63,8 +63,11 @@ class MainWindow(QtWidgets.QMainWindow):
         
 
     def select_file(self):
-        filePath, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose File", os.getcwd(), "Zip Files(*.zip);;All Files (*.*)")
-        self.open_offline_file(filePath)
+        if self.ifinitialise:
+            filePath, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose File", os.getcwd(), "Zip Files(*.zip);;All Files (*.*)")
+            self.open_offline_file(filePath)
+        else:
+            self.information_box("You haven't initialised!","Error")
 
     def open_offline_file(self,filePath):
         try:
@@ -111,7 +114,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def initialisation_slot(self,schoolCodeList):
         self.ifinitialise = True
-        self.schoolCodeList = schoolCodeList
+        self.schoolCodeList = schoolCodeList[0:1]
+        self.gradeOrder = schoolCodeList[2]
         self.ifInitialised.setText("Initialised.")
         self.statusbar.showMessage("Finish.")
         self.information_box("Initialised successfully.","Information")
@@ -156,7 +160,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.output.clear()
         try:
             with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
-                res:dict = analyse_data(json.load(file))
+                res:dict = analyse_data(json.load(file),self.gradeOrder)
                 
                 self.output.addItem(f"Total Registeration Number: {res['summary']['num']}")
                 self.output.addItems([f"{l} : {res['summary']['CombinedScore'][l]}" for l in list(res['summary']['CombinedScore'])]) #

@@ -30,7 +30,7 @@ def ping_host(*args):
     """
 
 def post(schoolCode, status):
-    types = ["instruction","directional","guide"]
+    types = ["instruction","directional","alter","guide"]
     isInfoAPISuccessful = []
     for t in types:
         d = {'schoolCode':schoolCode,"type":t,"status":status}
@@ -60,7 +60,7 @@ def get_single_school_data(schoolCode:int,status:int):
     # Get the single school data online and return it
     # Data structure:{"schoolCode" : schoolCode, "schoolName":schoolName, "instruction" : list...}
     data = dict()
-    types = ["instruction","directional","guide"]
+    types = ["instruction","directional","alter","guide"]
     for t in types:
         d = {'schoolCode':schoolCode,"type":t,"status":status}
         url=f"http://www.nnzkzs.com/api/services/app/publicityDetail/GetGeneralDetail?schoolCode={str(schoolCode)}&type={t}&status={status}"
@@ -89,7 +89,7 @@ def get_save_single_school_data(schoolCode:int,status:int,filepath = "\\"):
     return data
 
 def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\saves\\"):
-    types = ["instruction","directional","guide"]
+    types = ["instruction","directional","alter","guide"]
     # Get registeration data of schools in the schoolList and compress them into a zip file {time stamp}.zip
     currentPath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0)))
     filePath = currentPath+"\\TEMP\\"
@@ -126,9 +126,19 @@ def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\
     shutil.move(currentPath+"\\"+fileName+".zip", currentPath+savePath)
     shutil.rmtree(filePath) # Delete the temporary folder
 
-def analyse_data(school_data):
+def sort_dict_by_list(dict:dict,list:list):
+    # sort the dictionary by list and keys
+    sorted_dict = {}
+    d = sorted(dict.items(),key = lambda l:list.index(l[0]))
+    # form a list [(a,b),(c,d)]
+    for i, (k, v) in enumerate(d):
+        sorted_dict[i] = v
+    return sorted_dict
+
+
+def analyse_data(school_data,gradeOrder):
     # Get outline
-    types = ["instruction","directional","guide"]
+    types = ["instruction","directional","alter","guide"]
     total = []
     classification = dict.fromkeys(types,{})
     summary = {}
@@ -139,14 +149,18 @@ def analyse_data(school_data):
             classification[t]["num"] = len(school_data[t])
             # get registeration number 
             
-            classification[t]["CombinedScore"] = Counter([l["CombinedScore"] for l in school_data[t]])
+            classification[t]["CombinedScore"] = dict(Counter([l["CombinedScore"] for l in school_data[t]]))
+            classification[t]["CombinedScore"] = sort_dict_by_list(classification[t]["CombinedScore"],gradeOrder)
         else:
             classification[t]["num"] = 0
             classification[t]["CombinedScore"] = {}
         # get combine score dictionary
 
+    
+
     summary["num"] = len(total)
-    summary["CombinedScore"] = Counter([l["CombinedScore"] for l in total])
+    summary["CombinedScore"] = dict(Counter([l["CombinedScore"] for l in total]))
+    summary["CombinedScore"] = sort_dict_by_list(summary["CombinedScore"],gradeOrder)
 
     return {"summary":summary,"classification":classification}
 
@@ -165,6 +179,7 @@ def initialise():
     vocational_api = "http://www.nnzkzs.com/api/services/app/vocationalPublicity/GetPublicity"
     filePath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0))) + "\\Out-of-date Information\\schoolCode.json"
     with open(filePath, "r",encoding="utf8") as file:
+        #get school code list online if api is available
         code_dict = json.load(file)
         if APIAvailablity(general_api):
             general_list = get_school_code_list(general_api)
@@ -174,8 +189,13 @@ def initialise():
             vocational_list = get_school_code_list(vocational_api)
         else:
             vocational_list = code_dict["vocational"]
+    
+    filePath_order = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0))) + "\\gradeOrder.json"
+    with open(filePath_order, "r",encoding="utf8") as file:
+        grade_order = json.load(file)
+        #get the grade order for sorting
 
-    return general_list,vocational_list
+    return general_list,vocational_list,grade_order
         
 
 def open_file():
