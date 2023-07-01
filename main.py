@@ -24,6 +24,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.schoolCodeSelection.currentIndexChanged.connect(self.choose_school)
         self.getCurrent.clicked.connect(self.get_current_information)
         self.initialisation.clicked.connect(self.initialise_thread)
+        self.loopStart.clicked.connect(self.circulate_thread)
+        self.loopStop.clicked.connect(self.stop_circulating)
+        test()
 
 
     def get_current_information(self):
@@ -138,7 +141,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thread2.start()
 
 
-
     def ping_thread(self):
         self.statusbar.showMessage("Pinging www.nnzkzs.com.")
         # Create a QThread object and a worker object
@@ -156,7 +158,41 @@ class MainWindow(QtWidgets.QMainWindow):
         # Start the thread
         self.thread1.start()
 
+
+    def circulate_thread(self):
+        self.status = self.StatusNum.toPlainText()
+        self.interval = self.Interval.toPlainText()
+        if self.ifinitialise:
+        # use for start threading
+            self.statusbar.showMessage("Start circulating.")
+            self.circulate_threading= QThread()
+
+            if self.isGeneral.isChecked():
+                #general school information
+                self.circulate_worker =Circulate_Worker(self.schoolCodeList[0],self.interval,self.status,"\\saves\\")
+            else:
+                self.circulate_worker = Circulate_Worker(self.schoolCodeList[1],self.interval,self.status,"\\saves\\")
+
+            self.circulate_worker.moveToThread(self.circulate_threading)
+            self.circulate_threading.started.connect(self.circulate_worker.run)
+            self.circulate_worker.finished.connect(self.circulate_threading.quit)
+            self.circulate_worker.finished.connect(self.circulate_worker.deleteLater)
+            self.circulate_worker.update.connect(self.update_counter)
+            self.circulate_threading.finished.connect(self.circulate_threading.deleteLater)
+            self.circulate_threading.start()
+        else:
+            self.information_box("You haven't initialised!","Error")
+        
+
+    def stop_circulating(self):
+        # stop circulating proactively
+        self.circulate_worker.running = False
+
+    def update_counter(self,num):
+        self.counter.setText(str(num))
+
     def get_current_school(self):
+        #display the detail in the list box
         self.output.clear()
         try:
             with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
@@ -199,6 +235,36 @@ class Test_Worker(QObject):
             self.result.emit(msg,self.title)
         # Emit the finished signal
         self.finished.emit("Finish.")
+
+class Circulate_Worker(QObject):
+    # The worker is for circulating
+    finished = pyqtSignal()
+    update = pyqtSignal(object)
+
+    def __init__(self,schoolCodeList,interval,status,savePath = "\\saves\\"):
+        super().__init__()
+        self.schoolCodeList = schoolCodeList
+        self.status = status
+        self.savePath = savePath
+        self.running = True
+        self.interval = interval
+
+    def run(self):
+        try:
+            counter = 0
+            while self.running:
+                current_time = str(int(time.time()))
+                get_sequence_school_data(self.schoolCodeList,self.status,current_time,self.savePath)
+                counter+=1
+                self.update.emit(counter)
+                time.sleep(int(self.interval))
+                
+            self.finished.emit()
+
+        except Exception as e:
+            print(f"Circulating error: {e}")
+        # Emit the finished signal
+        self.finished.emit()
 
 class Initialise_Worker(QObject):
     result = pyqtSignal(object)

@@ -16,7 +16,13 @@ def information_box(information, title = "Information"):
     box.setStandardButtons(QtWidgets.QMessageBox.Ok)
     box.exec_()
 
-
+def test():
+    pass
+    """url=f"http://www.nnzkzs.com/api/services/app/publicityDetail/GetGeneralDetail?schoolCode={str(schoolCode)}&type={t}&status={status}"
+    res=requests.post(url,data=d)
+    print(json.loads(res.json()["result"]))   """
+    #with open("test.txt","w") as f:
+    #    json.dump(requests.get("http://www.nnzkzs.com/api/services/app/generalPublicity/GetPublicity").json(),f)
 
 def ping_host(*args):
     
@@ -30,29 +36,52 @@ def ping_host(*args):
     """
 
 def post(schoolCode, status):
+    # Test for all APIs
+
     types = ["instruction","directional","alter","guide"]
     isInfoAPISuccessful = []
+
     for t in types:
         d = {'schoolCode':schoolCode,"type":t,"status":status}
-        url="http://www.nnzkzs.com/api/services/app/publicityDetail/GetGeneralDetail?schoolCode=%s&type=%s&status=4"%(str(schoolCode),t)
+        url="http://www.nnzkzs.com/api/services/app/publicityDetail/GetGeneralDetail?schoolCode=%s&type=%s&status=%s"%(str(schoolCode),t,status)
         #Test for API which is used to get detailed registeration data
         isInfoAPISuccessful.append(APIAvailablity(url,d))
     info_available = all(isInfoAPISuccessful)
 
     
-    general_list_available = APIAvailablity("http://www.nnzkzs.com/api/services/app/generalPublicity/GetPublicity")
-    #Test for API which is used to get general school information
+    general_list_available = APIAvailablity("http://www.nnzkzs.com/api/services/app/generalPublicity/GetPublicity", ifPost=False)
+    #Test for API which is used to get general school information. The method is Get while in 2021 and 2022 it was Post.
+
+    general_list_available_2 = APIAvailablity("http://www.nnzkzs.com/api/services/app/generalProgress/GetProgress", ifPost=False)
+    #Test for API alternative which is used to get general school information
 
     vocational_list_available = APIAvailablity("http://www.nnzkzs.com/api/services/app/vocationalPublicity/GetPublicity")
     # Test for API which is used to get vocational school information
 
-    return f"Registeration Data API Availablity: {str(info_available)}\nGeneral School Information API Availablity: {str(general_list_available)}\nVocational School Information API Availablity: {str(vocational_list_available)}"
+    vocational_list_available_2 = APIAvailablity("http://www.nnzkzs.com/api/services/app/vocationalProgress/GetProgress")
+    # Test for API alternative which is used to get vocational school information
 
-def APIAvailablity(url,data = None):
+    return f"Registeration Data API Availablity: {str(info_available)}\nGeneral School Information API Availablity: {str(general_list_available)}\nGeneral School Information API Alternative Availablity: {str(general_list_available_2)}\nVocational School Information API Availablity: {str(vocational_list_available)}\nVocational School Information API Alternative Availablity: {str(vocational_list_available_2)}"
+
+def APIAvailablity(url,data = None, ifPost = True):
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.157',
+               'X-XSRF-TOKEN': 'c3zy7c3jZL5Jd4v2o33R6-eK7ydTMApwODARCPHHjMchJDmjjvUECZJmmz70NS-lpuRbK2Ya1aHi7ScW-GysCTooH9o1',
+               'Accept': 'application/json, text/plain, */*',
+               'Accept-Encoding': 'gzip, deflate',
+               'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+               'Host': 'www.nnzkzs.com',
+               'Referer': 'http://www.nnzkzs.com/'
+               } # define headers
+
+
     try:
-        res=requests.post(url,data = data)
+        if ifPost:
+            res=requests.post(url, data = data, headers = headers)
+        else:
+            res = requests.get(url, data = data, headers = headers)
         r = res.json()['success']
     except Exception as e:
+        print(f"API Error: {e}")
         r = False
     return r
 
@@ -71,7 +100,7 @@ def get_single_school_data(schoolCode:int,status:int):
             if not bool(res.json()["result"]):
                 continue
             data["schoolName"] = json.loads(res.json()["result"])["schoolName"] # Get school name
-            data[t] = json.loads(res.json()["result"])["lists"] # Get registeration data            
+            data[t] = json.loads(res.json()["result"])["lists"] # Get registeration data     
         except TypeError as e:
             print(e)
         except BufferError:
@@ -104,17 +133,18 @@ def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\
     total["schoolName"] = "Total Data"
     for sc in schoolList:
         #TODO: create a new window to show the progress
-        #print(schoolList.index(sc)/len(schoolList))  #out put progress
+        #print(schoolList.index(sc)/len(schoolList))  # exporting progress
 
         data = get_save_single_school_data(sc,status,filePath)
         if data != None:
             for t in types:
                 if t in list(data.keys()):
+                    print(data.keys())
                     total[t]+=data[t]  # save all to total.json
 
     with open(f"{filePath}metadata.json","w",encoding="utf8") as f:
         # create metadata file
-        json.dump({"runTime":time.time(),"status":status},f)
+        json.dump({"runTime":time.time(),"status":status,"schoolNumber":len(schoolList)},f)
     
     with open(f"{filePath}Total.json","w",encoding="utf8") as f:
         # create metadata file
@@ -126,14 +156,16 @@ def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\
     shutil.move(currentPath+"\\"+fileName+".zip", currentPath+savePath)
     shutil.rmtree(filePath) # Delete the temporary folder
 
-def sort_dict_by_list(dict:dict,list:list):
+def sort_dict_by_list(dict:dict,grade_list:list):
     # sort the dictionary by list and keys
-    sorted_dict = {}
-    d = sorted(dict.items(),key = lambda l:list.index(l[0]))
-    # form a list [(a,b),(c,d)]
-    for i, (k, v) in enumerate(d):
-        sorted_dict[i] = v
-    return sorted_dict
+    new_dict = {}
+    for l in grade_list:
+        if l in list(dict.keys()):
+            if dict[l]!=0:
+                new_dict[l] = dict[l]
+    return new_dict
+
+
 
 
 def analyse_data(school_data,gradeOrder):
@@ -164,13 +196,16 @@ def analyse_data(school_data,gradeOrder):
 
     return {"summary":summary,"classification":classification}
 
-def get_school_code_list(url:str):
+def get_school_code_list(url:str, ifPost = True):
     # get school code list online
     try:
-        res = requests.post(url)
+        if ifPost:
+            res = requests.post(url)
+        else:
+            res = requests.get(url)
         list = json.loads(res.json()['result'])["bmgs_main"]
-    except json.RequestsJSONDecodeError as e:
-        return get_school_code_list(url)
+    except json.decoder.JSONDecodeError as e:
+        return get_school_code_list(url, ifPost=ifPost)
     return [int(l["SchoolCode"]) for l in list]
 
 def initialise():
@@ -181,8 +216,8 @@ def initialise():
     with open(filePath, "r",encoding="utf8") as file:
         #get school code list online if api is available
         code_dict = json.load(file)
-        if APIAvailablity(general_api):
-            general_list = get_school_code_list(general_api)
+        if APIAvailablity(general_api, ifPost=False):
+            general_list = get_school_code_list(general_api, ifPost=False)
         else:
             general_list = code_dict["general"]
         if APIAvailablity(vocational_api):
