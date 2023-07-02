@@ -16,14 +16,6 @@ def information_box(information, title = "Information"):
     box.setStandardButtons(QtWidgets.QMessageBox.Ok)
     box.exec_()
 
-def test():
-    pass
-    """url=f"http://www.nnzkzs.com/api/services/app/publicityDetail/GetGeneralDetail?schoolCode={str(schoolCode)}&type={t}&status={status}"
-    res=requests.post(url,data=d)
-    print(json.loads(res.json()["result"]))   """
-    #with open("test.txt","w") as f:
-    #    json.dump(requests.get("http://www.nnzkzs.com/api/services/app/generalPublicity/GetPublicity").json(),f)
-
 def ping_host(*args):
     
     ping_result = ping(target="www.nnzkzs.com", count=10, timeout=2)
@@ -117,7 +109,7 @@ def get_save_single_school_data(schoolCode:int,status:int,filepath = "\\"):
         return None
     return data
 
-def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\saves\\"):
+def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\saves\\", signal = None):
     types = ["instruction","directional","alter","guide"]
     # Get registeration data of schools in the schoolList and compress them into a zip file {time stamp}.zip
     currentPath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0)))
@@ -129,25 +121,29 @@ def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\
         shutil.rmtree(filePath)
         os.mkdir(filePath)
     
-    total = dict.fromkeys(types,[]) # Summary
+    total = {t: [] for t in types} # don't use dictfromkeys otherwise all the keys are hooked to a single memory
     total["schoolName"] = "Total Data"
     for sc in schoolList:
-        #TODO: create a new window to show the progress
-        #print(schoolList.index(sc)/len(schoolList))  # exporting progress
+        if bool(signal):
+            # update the progress
+            signal(schoolList.index(sc)+1)
+        
 
         data = get_save_single_school_data(sc,status,filePath)
         if data != None:
-            for t in types:
-                if t in list(data.keys()):
-                    print(data.keys())
+
+            for t in list(data.keys()):
+                if t in types:
+                    
                     total[t]+=data[t]  # save all to total.json
+
 
     with open(f"{filePath}metadata.json","w",encoding="utf8") as f:
         # create metadata file
-        json.dump({"runTime":time.time(),"status":status,"schoolNumber":len(schoolList)},f)
+        json.dump({"runTime":time.time(),"status":status,"schoolNumber":len(schoolList),"schoolList":schoolList},f)
     
     with open(f"{filePath}Total.json","w",encoding="utf8") as f:
-        # create metadata file
+        # create total file
         json.dump(total,f)
     
     shutil.make_archive(fileName, "zip",filePath) # Create zip file
@@ -172,7 +168,7 @@ def analyse_data(school_data,gradeOrder):
     # Get outline
     types = ["instruction","directional","alter","guide"]
     total = []
-    classification = dict.fromkeys(types,{})
+    classification = {t: {} for t in types}
     summary = {}
     for t in types:
         if t in list(school_data.keys()):
@@ -215,14 +211,16 @@ def initialise():
     filePath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0))) + "\\Out-of-date Information\\schoolCode.json"
     with open(filePath, "r",encoding="utf8") as file:
         #get school code list online if api is available
-        code_dict = json.load(file)
+        
         if APIAvailablity(general_api, ifPost=False):
             general_list = get_school_code_list(general_api, ifPost=False)
         else:
+            code_dict = json.load(file)
             general_list = code_dict["general"]
         if APIAvailablity(vocational_api):
             vocational_list = get_school_code_list(vocational_api)
         else:
+            code_dict = json.load(file)
             vocational_list = code_dict["vocational"]
     
     filePath_order = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0))) + "\\gradeOrder.json"

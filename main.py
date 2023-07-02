@@ -1,5 +1,6 @@
 from PyQt5 import QtCore, QtGui, uic, QtWidgets
 from PyQt5.QtCore import QObject,pyqtSignal,QThread
+from PyQt5.QtCore import Qt
 from threading import Thread
 from function import *
 import sys
@@ -11,13 +12,16 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
         uic.loadUi("ui.ui",self)
+        self.setWindowFlags(Qt.CustomizeWindowHint|Qt.WindowMinimizeButtonHint|Qt.WindowCloseButtonHint)
+        self.setFixedSize(self.width(), self.height())
+        # fix window size
         self.show()
-
         self.types = ["instruction","directional","alter","guide"]
         self.status = self.StatusNum.toPlainText()
         self.currentPath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0)))
         #register types
         self.ifinitialise = False
+        self.default_font = QtGui.QFont("Consolas", 14)
         self.Menu_Online_Ping.triggered.connect(self.ping_thread)
         self.Menu_Online_Post.triggered.connect(self.post_thread)
         self.Menu_File_Open.triggered.connect(self.select_file)
@@ -26,12 +30,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.initialisation.clicked.connect(self.initialise_thread)
         self.loopStart.clicked.connect(self.circulate_thread)
         self.loopStop.clicked.connect(self.stop_circulating)
-        test()
 
 
     def get_current_information(self):
         self.status = self.StatusNum.toPlainText()
+        
         if self.ifinitialise:
+            self.create_dialog_window()
             # Determining whether to initialize
             self.get_thread = QThread()
             if self.isGeneral.isChecked():
@@ -41,11 +46,13 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 self.statusbar.showMessage("Getting vocational schools' registeration data.")
                 self.get_worker = GetAll_Worker(self.schoolCodeList[1],self.status,"\\saves\\")
+
             self.get_worker.moveToThread(self.get_thread)
             self.get_thread.started.connect(self.get_worker.run)
             self.get_worker.finished.connect(self.get_thread.quit)
             self.get_thread.finished.connect(self.get_thread.deleteLater)
             self.get_worker.result.connect(self.get_current_information_slot)
+            self.get_worker.update.connect(self.update_progress)
             self.get_thread.start()
         else:
             self.information_box("You haven't initialised!","Error")
@@ -63,6 +70,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.information_box("Get current registeration data successfully.")
         else:
             self.information_box(f"Get current registeration data incompletely successfully.{len(self.realschoolList) - 1}/{num}")
+
         
 
     def select_file(self):
@@ -105,19 +113,23 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.get_current_school()
     
     def initialise_thread(self):
-        self.statusbar.showMessage("Initialising...")
-        self.init_thread = QThread()
-        self.init_worker = Initialise_Worker()
-        self.init_worker.moveToThread(self.init_thread)
-        self.init_thread.started.connect(self.init_worker.run)
-        self.init_worker.finished.connect(self.init_thread.quit)
-        self.init_thread.finished.connect(self.init_thread.deleteLater)
-        self.init_worker.result.connect(lambda *args: self.initialisation_slot(*args))
-        self.init_thread.start()
+        try:
+            self.statusbar.showMessage("Initialising...")
+            self.init_thread = QThread()
+            self.init_worker = Initialise_Worker()
+            self.init_worker.moveToThread(self.init_thread)
+            self.init_thread.started.connect(self.init_worker.run)
+            self.init_worker.finished.connect(self.init_thread.quit)
+            self.init_thread.finished.connect(self.init_thread.deleteLater)
+            self.init_worker.fail.connect(self.information_box)
+            self.init_worker.result.connect(lambda *args: self.initialisation_slot(*args))
+            self.init_thread.start()
+        except json.decoder.JSONDecodeError:
+            self.information_box("Initialisation failed. Please check your network and don't use proxy.","Error")
 
     def initialisation_slot(self,schoolCodeList):
         self.ifinitialise = True
-        self.schoolCodeList = schoolCodeList[0:1]
+        self.schoolCodeList = schoolCodeList[0:2]
         self.gradeOrder = schoolCodeList[2]
         self.ifInitialised.setText("Initialised.")
         self.statusbar.showMessage("Finish.")
@@ -186,10 +198,43 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def stop_circulating(self):
         # stop circulating proactively
-        self.circulate_worker.running = False
+        if hasattr(self,"Circulate_Worker"):
+            self.circulate_worker.running = False
+        else:
+            self.information_box("You haven't started circulating!","Error")
 
     def update_counter(self,num):
         self.counter.setText(str(num))
+
+    def update_progress(self,value):
+        self.progressBar.setValue(value)
+        if value > self.progressBar.maximum():
+            self.progressBar.close()
+
+    def create_dialog_window(self):
+        self.progressBar = QtWidgets.QProgressDialog(self,flags=Qt.WindowMaximizeButtonHint | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowMinimizeButtonHint)
+        self.progressBar.setWindowTitle("Progress")
+        self.progressBar.setFixedSize(350,80)
+        self.progressBar.setLabelText("Getting current data...")
+        self.progressBar.setMinimumDuration(5)  # confirm that the progress dialog must appear
+        self.progressBar.setWindowModality(Qt.NonModal)
+        self.progressBar.show()
+        if self.isGeneral.isChecked():
+            self.progressBar.setRange(0,len(self.schoolCodeList[0]))
+        else:
+            self.progressBar.setRange(0,len(self.schoolCodeList[1])) 
+        self.progressBar.setValue(0)
+        self.progressBar.setFont(self.default_font)
+
+        button = QtWidgets.QPushButton(self.progressBar)
+        button.hide()
+        button.setEnabled(False)
+        self.progressBar.setCancelButton(button)
+        button.hide()
+        # hide the original cancel button
+
+        self.progressBar.show()
+    
 
     def get_current_school(self):
         #display the detail in the list box
@@ -269,18 +314,26 @@ class Circulate_Worker(QObject):
 class Initialise_Worker(QObject):
     result = pyqtSignal(object)
     finished = pyqtSignal()
+    fail = pyqtSignal(object,object)
 
     def __init__(self):
         super().__init__()
 
     def run(self):
-        schoolCodeList = initialise()
-        self.result.emit(schoolCodeList)
-        self.finished.emit()
+        try:
+            schoolCodeList = initialise()
+            self.result.emit(schoolCodeList)
+            self.finished.emit()
+        except json.decoder.JSONDecodeError:
+            self.fail.emit("Initialisation failed. Please check your network and don't use proxy.","Error")
+        finally:
+            self.finished.emit()
+        
 
 class GetAll_Worker(QObject):
     # For thread getting all information
     result = pyqtSignal(object,object)
+    update = pyqtSignal(object)
     finished = pyqtSignal()
 
     def __init__(self,schoolCodeList,status,savePath = "\\saves\\"):
@@ -291,7 +344,8 @@ class GetAll_Worker(QObject):
         self.time = str(int(time.time()))
 
     def run(self):
-        get_sequence_school_data(self.schoolCodeList,self.status,self.time,self.savePath)
+        
+        get_sequence_school_data(self.schoolCodeList,self.status,self.time,self.savePath,self.update.emit)
         self.result.emit(self.time,self.savePath)
         self.finished.emit()
 
