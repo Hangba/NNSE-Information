@@ -141,7 +141,7 @@
     </property>
     <property name="font">
      <font>
-      <family>Consolas</family>
+      <family>DengXian</family>
       <pointsize>14</pointsize>
      </font>
     </property>
@@ -214,7 +214,7 @@
       <x>240</x>
       <y>50</y>
       <width>651</width>
-      <height>51</height>
+      <height>52</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">

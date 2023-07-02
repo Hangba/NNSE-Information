@@ -1,7 +1,6 @@
 from PyQt5 import QtCore, QtGui, uic, QtWidgets
 from PyQt5.QtCore import QObject,pyqtSignal,QThread
 from PyQt5.QtCore import Qt
-from threading import Thread
 from function import *
 import sys
 import zipfile
@@ -16,11 +15,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setFixedSize(self.width(), self.height())
         # fix window size
         self.show()
-        self.types = ["instruction","directional","alter","guide"]
+        self.types = ["instruction","directional","alter","guide","vocational"]
         self.status = self.StatusNum.toPlainText()
         self.currentPath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0)))
         #register types
         self.ifinitialise = False
+        self.ifopenfile = False
         self.default_font = QtGui.QFont("Consolas", 14)
         self.Menu_Online_Ping.triggered.connect(self.ping_thread)
         self.Menu_Online_Post.triggered.connect(self.post_thread)
@@ -30,6 +30,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.initialisation.clicked.connect(self.initialise_thread)
         self.loopStart.clicked.connect(self.circulate_thread)
         self.loopStop.clicked.connect(self.stop_circulating)
+        self.actionExport_as_Excel_File.triggered.connect(self.export_as_excel)
 
 
     def get_current_information(self):
@@ -42,10 +43,10 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.isGeneral.isChecked():
             #general school information
                 self.statusbar.showMessage("Getting general schools' registeration data.")
-                self.get_worker = GetAll_Worker(self.schoolCodeList[0],self.status,"\\saves\\")
+                self.get_worker = GetAll_Worker(self.schoolCodeList[0],self.status,"\\saves\\",False)
             else:
                 self.statusbar.showMessage("Getting vocational schools' registeration data.")
-                self.get_worker = GetAll_Worker(self.schoolCodeList[1],self.status,"\\saves\\")
+                self.get_worker = GetAll_Worker(self.schoolCodeList[1],self.status,"\\saves\\",True)
 
             self.get_worker.moveToThread(self.get_thread)
             self.get_thread.started.connect(self.get_worker.run)
@@ -60,6 +61,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def get_current_information_slot(self,fileName,savePath):
         self.statusbar.showMessage("Finish.")
         self.open_offline_file(self.currentPath+savePath+fileName+".zip")
+        if len(self.realschoolList)-1==0:
+            self.information_box(f"Getting current registeration data failed.","Error")
+            return 0
         if self.isGeneral.isChecked():
             
             num = len(self.schoolCodeList[0])
@@ -67,7 +71,7 @@ class MainWindow(QtWidgets.QMainWindow):
             num = len(self.schoolCodeList[1])
         lack = num - len(self.realschoolList) + 1
         if lack == 0:
-            self.information_box("Get current registeration data successfully.")
+            self.information_box(f"Get current registeration data successfully.{len(self.realschoolList) - 1}/{num}")
         else:
             self.information_box(f"Get current registeration data incompletely successfully.{len(self.realschoolList) - 1}/{num}")
 
@@ -85,12 +89,18 @@ class MainWindow(QtWidgets.QMainWindow):
             self.current_file = zipfile.ZipFile(filePath)
             with self.current_file.open("metadata.json") as meta:
                 # Get run time in metadata.json, get school list from file names
-                runTime = json.load(meta)["runTime"]
                 originalList = self.current_file.namelist()
                 originalList.remove("metadata.json")
                 self.realschoolList = list(map(lambda l:l[0:-5], [l for l in originalList])) # the school exists actually, include Total.json
+                if len(self.realschoolList)-1 == 0:
+                    #empty data
+                    self.current_file.close()
+                    raise RuntimeWarning
+                runTime = json.load(meta)["runTime"]
+                
                 self.schoolCodeSelection.clear()
                 self.schoolCodeSelection.addItems(self.realschoolList)
+                self.ifopenfile = True
 
             self.filePathLabel.setText(filePath)
             self.fileTimeLabel.setText(time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(runTime)))
@@ -99,6 +109,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.information_box("The file can't be parsed.","Error")
         except ValueError as e:
             self.information_box(str(e),"Error")
+        except RuntimeWarning:
+            #if no school is in data
+            os.remove(filePath)
+            return 0 
 
     def choose_school(self):
         if self.schoolCodeSelection.currentText()!="":
@@ -198,7 +212,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def stop_circulating(self):
         # stop circulating proactively
-        if hasattr(self,"Circulate_Worker"):
+        if hasattr(self,"circulate_worker"):
             self.circulate_worker.running = False
         else:
             self.information_box("You haven't started circulating!","Error")
@@ -235,20 +249,47 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.progressBar.show()
     
-
     def get_current_school(self):
         #display the detail in the list box
         self.output.clear()
         try:
             with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
                 res:dict = analyse_data(json.load(file),self.gradeOrder)
+                summary_score = estimate(res['summary']['CombinedScore'],self.gradeOrder)
                 
                 self.output.addItem(f"Total Registeration Number: {res['summary']['num']}")
-                self.output.addItems([f"{l} : {res['summary']['CombinedScore'][l]}" for l in list(res['summary']['CombinedScore'])]) #
+                self.output.addItem(f"Estimated Score:{round(summary_score,4)}")
+                self.output.addItems([f"{l} : {res['summary']['CombinedScore'][l]}" for l in list(res['summary']['CombinedScore'])]) 
                 #CombineScore output
+                
         except KeyError as e:
             self.information_box(f"You haven't selected a school!\n{e}","Error")
+
+    def export_as_excel(self):
+        if self.ifopenfile:
+            from openpyxl import Workbook
+            filePath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0)))
+            save, ftype = QtWidgets.QFileDialog.getSaveFileName(self, 'Save as Excel File', filePath, "Excel File (*.xlsx)")
+            wb = Workbook()
+            wb_activated = wb.active
+            wb_activated.append(["Export time stamp:",str(int(time.time()))])
             
+            
+            for s in self.realschoolList:
+                with self.current_file.open(f"{s}.json") as file:
+                    res:dict = analyse_data(json.load(file),self.gradeOrder)
+                    wb_activated.append(["School code", s])
+                    wb_activated.append(["School name", res["schoolName"]])
+                    for l in res['summary']['CombinedScore']:
+                        wb_activated.append([l,res['summary']['CombinedScore'][l]])
+
+                    wb_activated.append([])
+
+            wb.save(save)
+            self.information_box("Save successfully.")
+        else:
+            self.information_box("You haven't opened a file.","Error")
+      
         
     def information_box(self, information, title = "Information"):
         box = QtWidgets.QMessageBox()
@@ -336,16 +377,16 @@ class GetAll_Worker(QObject):
     update = pyqtSignal(object)
     finished = pyqtSignal()
 
-    def __init__(self,schoolCodeList,status,savePath = "\\saves\\"):
+    def __init__(self,schoolCodeList,status,savePath = "\\saves\\",ifvocational = False):
         super().__init__()
         self.schoolCodeList = schoolCodeList
         self.status = status
         self.savePath = savePath
         self.time = str(int(time.time()))
+        self.ifvocational = ifvocational
 
     def run(self):
-        
-        get_sequence_school_data(self.schoolCodeList,self.status,self.time,self.savePath,self.update.emit)
+        get_sequence_school_data(self.schoolCodeList,self.status,self.time,self.savePath,self.update.emit,self.ifvocational)
         self.result.emit(self.time,self.savePath)
         self.finished.emit()
 

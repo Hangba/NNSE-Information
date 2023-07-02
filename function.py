@@ -30,7 +30,7 @@ def ping_host(*args):
 def post(schoolCode, status):
     # Test for all APIs
 
-    types = ["instruction","directional","alter","guide"]
+    types = ["instruction","directional","alter","guide","vocational"]
     isInfoAPISuccessful = []
 
     for t in types:
@@ -77,31 +77,51 @@ def APIAvailablity(url,data = None, ifPost = True):
         r = False
     return r
 
-def get_single_school_data(schoolCode:int,status:int):
+def get_single_school_data(schoolCode:int,status:int,ifvocational = False):
     # Get the single school data online and return it
     # Data structure:{"schoolCode" : schoolCode, "schoolName":schoolName, "instruction" : list...}
     data = dict()
-    types = ["instruction","directional","alter","guide"]
-    for t in types:
-        d = {'schoolCode':schoolCode,"type":t,"status":status}
-        url=f"http://www.nnzkzs.com/api/services/app/publicityDetail/GetGeneralDetail?schoolCode={str(schoolCode)}&type={t}&status={status}"
+    types = ["instruction","directional","alter","guide","vocational"]
+    if not ifvocational:
+        #vocational schools api doesn't need types
+        for t in types:
+            d = {'schoolCode':schoolCode,"type":t,"status":status}
+            url=f"http://www.nnzkzs.com/api/services/app/publicityDetail/GetGeneralDetail?schoolCode={schoolCode}&type={t}&status={status}"
+            try:
+                res=requests.post(url,data=d)
+                if res.status_code == 502:
+                    raise BufferError
+                if not bool(res.json()["result"]):
+                    continue
+                data["schoolName"] = json.loads(res.json()["result"])["schoolName"] # Get school name
+                data[t] = json.loads(res.json()["result"])["lists"] # Get registeration data     
+            except TypeError as e:
+                print(e)
+            except BufferError as e:
+                print("get single school data error:",str(e))
+                return None
+    else:
+        url=f"http://www.nnzkzs.com/api/services/app/publicityDetail/GetVocationalDetail?schoolCode={schoolCode}"
         try:
-            res=requests.post(url,data=d)
+            res=requests.post(url)
             if res.status_code == 502:
                 raise BufferError
             if not bool(res.json()["result"]):
-                continue
-            data["schoolName"] = json.loads(res.json()["result"])["schoolName"] # Get school name
-            data[t] = json.loads(res.json()["result"])["lists"] # Get registeration data     
+                return None
+            ctn_dict = get_code_to_name_dict()
+            if bool(ctn_dict):
+                data["schoolName"] = ctn_dict[schoolCode] # Get school name
+            data["vocational"] = json.loads(res.json()["result"])["lists"] # Get registeration data     
         except TypeError as e:
-            print(e)
-        except BufferError:
-            return None
+                print(e)
+        except BufferError as e:
+                print("get single school data error:",str(e))
+                return None
     return data
 
-def get_save_single_school_data(schoolCode:int,status:int,filepath = "\\"):
+def get_save_single_school_data(schoolCode:int,status:int,filepath = "\\", ifvocational = False):
     # Get the single school data online and save to {schoolCode}.json
-    data = get_single_school_data(schoolCode, status)
+    data = get_single_school_data(schoolCode, status,ifvocational)
     if data != None and data != {}:
         with open(f"{filepath}{schoolCode}.json","w", encoding="utf8") as f:
             json.dump(data,f)
@@ -109,8 +129,8 @@ def get_save_single_school_data(schoolCode:int,status:int,filepath = "\\"):
         return None
     return data
 
-def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\saves\\", signal = None):
-    types = ["instruction","directional","alter","guide"]
+def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\saves\\", signal = None,ifvocational = False):
+    types = ["instruction","directional","alter","guide","vocational"]
     # Get registeration data of schools in the schoolList and compress them into a zip file {time stamp}.zip
     currentPath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0)))
     filePath = currentPath+"\\TEMP\\"
@@ -129,7 +149,7 @@ def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\
             signal(schoolList.index(sc)+1)
         
 
-        data = get_save_single_school_data(sc,status,filePath)
+        data = get_save_single_school_data(sc,status,filePath,ifvocational)
         if data != None:
 
             for t in list(data.keys()):
@@ -140,7 +160,11 @@ def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\
 
     with open(f"{filePath}metadata.json","w",encoding="utf8") as f:
         # create metadata file
-        json.dump({"runTime":time.time(),"status":status,"schoolNumber":len(schoolList),"schoolList":schoolList},f)
+        if ifvocational:
+            kind = "vocational"
+        else:
+            kind = "general"
+        json.dump({"runTime":time.time(),"status":status,"schoolKind":kind,"schoolNumber":len(schoolList),"schoolList":schoolList},f)
     
     with open(f"{filePath}Total.json","w",encoding="utf8") as f:
         # create total file
@@ -166,7 +190,8 @@ def sort_dict_by_list(dict:dict,grade_list:list):
 
 def analyse_data(school_data,gradeOrder):
     # Get outline
-    types = ["instruction","directional","alter","guide"]
+    # summary = {"num":int,"CombinedScore:dict"}
+    types = ["instruction","directional","alter","guide","vocational"]
     total = []
     classification = {t: {} for t in types}
     summary = {}
@@ -190,7 +215,7 @@ def analyse_data(school_data,gradeOrder):
     summary["CombinedScore"] = dict(Counter([l["CombinedScore"] for l in total]))
     summary["CombinedScore"] = sort_dict_by_list(summary["CombinedScore"],gradeOrder)
 
-    return {"summary":summary,"classification":classification}
+    return {"summary":summary,"classification":classification,"schoolName":school_data["schoolName"]}
 
 def get_school_code_list(url:str, ifPost = True):
     # get school code list online
@@ -229,7 +254,47 @@ def initialise():
         #get the grade order for sorting
 
     return general_list,vocational_list,grade_order
-        
+
+def estimate(grade_dict:dict,gradeOrder,ifLinear = True, index = 2):
+    #grade_dict:{"6A+":5,"5A+1A":999}
+    #index: normalising constant
+    #self.output.addItems([f"{l} : {res['summary']['CombinedScore'][l]}" for l in list(res['summary']['CombinedScore'])])
+    score = 0
+    num = 0
+    for x in list(grade_dict.keys()):
+        order = len(gradeOrder) - gradeOrder.index(x)
+        score += grade_dict[x]*order
+        num += grade_dict[x]
+    try:
+        score/=num
+    except ZeroDivisionError:
+        return 0
+    score/=len(gradeOrder)
+    if ifLinear:
+        #The linear score is very close to 1, so the function is needed to normalise it
+        return score
+    else:
+        return score**index
+
+def get_code_to_name_dict():
+    dict = {}
+    url = "http://www.nnzkzs.com/api/services/app/vocationalProgress/GetProgress"
+    url2 = "http://www.nnzkzs.com/api/services/app/generalProgress/GetProgress"
+    res = requests.post(url)
+    res2 = requests.get(url2)  #general data needs get method
+    try:
+        if res.status_code==200 and res2.status_code==200:
+            list = json.loads(res.json()["result"])["progress"]+json.loads(res2.json()["result"])["progress"]
+            for l in list:
+                dict[int(l["SchoolCode"])] = l["SchoolName"]
+            return dict
+        else:
+            raise RuntimeWarning
+    except RuntimeWarning as e:
+        return None
+
+    
 
 def open_file():
     pass
+
