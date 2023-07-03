@@ -7,6 +7,7 @@ import time
 import os
 import inspect
 from PyQt5 import QtWidgets
+import matplotlib.pyplot as plt
 
 def information_box(information, title = "Information"):
     box = QtWidgets.QMessageBox()
@@ -118,6 +119,31 @@ def get_single_school_data(schoolCode:int,status:int,ifvocational = False):
                 print("get single school data error:",str(e))
                 return None
     return data
+
+
+def pie_chart(data:dict, output_threshold = 0.03):
+    # draw a pie chart of the elements whose ratio is bigger than output_threshold 
+    # data : {"e1":1,"e2":2}
+    fig, ax = plt.subplots()
+    summary = sum(list(data.values()))
+    show_dict = {}
+    ignored_schools = 0
+    for item in data.items():
+        if item[1]/summary>=output_threshold:
+            show_dict[item[0]] = item[1]
+        else:
+            ignored_schools +=1
+        
+    
+    grade = list(show_dict.keys())
+    number = list(show_dict.values())
+    ignored_students = summary - sum(number)
+
+    ax.pie(number, labels = grade, autopct='%1.2f%%')
+    return ax,ignored_schools,ignored_students
+
+     
+
 
 def get_save_single_school_data(schoolCode:int,status:int,filepath = "\\", ifvocational = False):
     # Get the single school data online and save to {schoolCode}.json

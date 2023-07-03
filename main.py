@@ -4,6 +4,9 @@ from PyQt5.QtCore import Qt
 from function import *
 import sys
 import zipfile
+import matplotlib.pyplot as plt
+import matplotlib
+import matplotlib.pylab
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -22,15 +25,91 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ifinitialise = False
         self.ifopenfile = False
         self.default_font = QtGui.QFont("Consolas", 14)
+        #self.icon = QtGui.QIcon("")
+        matplotlib.rcParams["font.sans-serif"] = ["Dengxian", "Consolas"]
+
+        # set chart default threshold
+        self.grade_distribution_chart_output_threshold = 0.03
+        self.school_distribution_chart_output_threshold = 0.03
+        
+
         self.Menu_Online_Ping.triggered.connect(self.ping_thread)
         self.Menu_Online_Post.triggered.connect(self.post_thread)
         self.Menu_File_Open.triggered.connect(self.select_file)
+        self.actionExport_as_Excel_File.triggered.connect(self.export_as_excel)
+        self.setting.triggered.connect(self.setting_window)
+        self.about.triggered.connect(self.about_window)
+
         self.schoolCodeSelection.currentIndexChanged.connect(self.choose_school)
         self.getCurrent.clicked.connect(self.get_current_information)
         self.initialisation.clicked.connect(self.initialise_thread)
         self.loopStart.clicked.connect(self.circulate_thread)
         self.loopStop.clicked.connect(self.stop_circulating)
-        self.actionExport_as_Excel_File.triggered.connect(self.export_as_excel)
+        
+
+        self.gradeDistribution.triggered.connect(self.grade_distribution)
+        self.schoolDistribution.triggered.connect(self.school_distribution)
+
+        
+        
+
+
+    def school_distribution(self):
+        # get the pie chart of grade distribution in a single school
+        if self.ifopenfile:  
+            try:
+                with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
+                    res:dict = analyse_data(json.load(file),self.gradeOrder)
+                    self.school_distribution_chart,ig_grade,ig_stu= pie_chart(res["summary"]["CombinedScore"],self.school_distribution_chart_output_threshold)
+                    self.school_distribution_chart.set_title(
+                        f"Grade Distrubution of {res['schoolName']}\n({ig_grade} grade(s) is(are) ignored, {ig_stu} student(s) is(are) ignored.)")
+                    plt.show()
+
+            except KeyError as e:
+                self.information_box(f"You haven't selected a school!\n{e}","Error")
+        else:
+            self.information_box(f"You haven't opened a file!","Error")
+
+    def grade_distribution(self):
+        # get the pie chart of a same grade distribution
+        try:
+
+            distribution = {}
+
+            if not self.ifopenfile:
+                raise RuntimeWarning
+            target_grade, ifsuccess = QtWidgets.QInputDialog.getText(self,"Input Grade","Please input a valid grade.")
+
+            if not ifsuccess:
+                raise NotImplementedError("Process was canceled")
+            
+            if target_grade not in self.gradeOrder:
+                raise RuntimeError
+            
+            file_list = self.realschoolList.copy()
+            file_list.remove("Total")
+
+            for fileName in file_list:
+                with self.current_file.open(f"{fileName}.json") as file:
+                    
+                    res:dict = analyse_data(json.load(file),self.gradeOrder)
+                    if target_grade in list(res["summary"]["CombinedScore"].keys()):
+                        distribution[res["schoolName"]] = res["summary"]["CombinedScore"][target_grade]
+
+            self.grade_distribution_chart,ig_school,ig_stu = pie_chart(distribution,self.grade_distribution_chart_output_threshold)
+            self.grade_distribution_chart.set_title(f"School Distribution of {target_grade}\n({ig_school} school(s) is(are) ignored, {ig_stu} student(s) is(are) ignored.)")
+            plt.show()
+            
+                
+        except RuntimeWarning:
+            self.information_box(f"You haven't opened a file!","Error")
+        except KeyError as e:
+            self.information_box(f"You haven't selected a school!\n{e}","Error")
+        except NotImplementedError:
+            # user canceled the process
+            pass
+        except RuntimeError:
+            self.information_box("The grade is invalid!","Error")
 
 
     def get_current_information(self):
@@ -146,6 +225,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.schoolCodeList = schoolCodeList[0:2]
         self.gradeOrder = schoolCodeList[2]
         self.ifInitialised.setText("Initialised.")
+        self.initialisation.setEnabled(False)
         self.statusbar.showMessage("Finish.")
         self.information_box("Initialised successfully.","Information")
 
@@ -290,6 +370,13 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.information_box("You haven't opened a file.","Error")
       
+    def setting_window(self):
+        print("A Setting Window")
+        pass
+
+    def about_window(self):
+        print("An About Window")
+        pass
         
     def information_box(self, information, title = "Information"):
         box = QtWidgets.QMessageBox()
