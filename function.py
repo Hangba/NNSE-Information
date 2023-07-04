@@ -255,23 +255,27 @@ def get_school_code_list(url:str, ifPost = True):
         return get_school_code_list(url, ifPost=ifPost)
     return [int(l["SchoolCode"]) for l in list]
 
-def initialise():
+def initialise(ifonline = True):
     # get 2 school code online or offline, depends on the api's availablity
     general_api = "http://www.nnzkzs.com/api/services/app/generalPublicity/GetPublicity"
     vocational_api = "http://www.nnzkzs.com/api/services/app/vocationalPublicity/GetPublicity"
     filePath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0))) + "\\Out-of-date Information\\schoolCode.json"
     with open(filePath, "r",encoding="utf8") as file:
         #get school code list online if api is available
-        
-        if APIAvailablity(general_api, ifPost=False):
-            general_list = get_school_code_list(general_api, ifPost=False)
+        if ifonline:
+            if APIAvailablity(general_api, ifPost=False):
+                general_list = get_school_code_list(general_api, ifPost=False)
+            else:
+                code_dict = json.load(file)
+                general_list = code_dict["general"]
+            if APIAvailablity(vocational_api):
+                vocational_list = get_school_code_list(vocational_api)
+            else:
+                code_dict = json.load(file)
+                vocational_list = code_dict["vocational"]
         else:
             code_dict = json.load(file)
             general_list = code_dict["general"]
-        if APIAvailablity(vocational_api):
-            vocational_list = get_school_code_list(vocational_api)
-        else:
-            code_dict = json.load(file)
             vocational_list = code_dict["vocational"]
     
     filePath_order = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0))) + "\\gradeOrder.json"

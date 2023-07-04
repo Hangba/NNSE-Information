@@ -14,6 +14,11 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
         uic.loadUi("ui.ui",self)
+
+        #load settings
+        self.setting_window = SettingWindow(self)
+        self.settings = self.setting_window.load_setting()
+
         self.setWindowFlags(Qt.CustomizeWindowHint|Qt.WindowMinimizeButtonHint|Qt.WindowCloseButtonHint)
         self.setFixedSize(self.width(), self.height())
         # fix window size
@@ -29,15 +34,15 @@ class MainWindow(QtWidgets.QMainWindow):
         matplotlib.rcParams["font.sans-serif"] = ["Dengxian", "Consolas"]
 
         # set chart default threshold
-        self.grade_distribution_chart_output_threshold = 0.03
-        self.school_distribution_chart_output_threshold = 0.03
+        self.grade_distribution_chart_output_threshold = self.settings["distribution_1_threshold"]
+        self.school_distribution_chart_output_threshold = self.settings["distribution_2_threshold"]
         
 
         self.Menu_Online_Ping.triggered.connect(self.ping_thread)
         self.Menu_Online_Post.triggered.connect(self.post_thread)
         self.Menu_File_Open.triggered.connect(self.select_file)
         self.actionExport_as_Excel_File.triggered.connect(self.export_as_excel)
-        self.setting.triggered.connect(self.setting_window)
+        self.setting.triggered.connect(self.open_setting_window)
         self.about.triggered.connect(self.about_window)
 
         self.schoolCodeSelection.currentIndexChanged.connect(self.choose_school)
@@ -209,7 +214,7 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             self.statusbar.showMessage("Initialising...")
             self.init_thread = QThread()
-            self.init_worker = Initialise_Worker()
+            self.init_worker = Initialise_Worker(self.settings["init_online"])
             self.init_worker.moveToThread(self.init_thread)
             self.init_thread.started.connect(self.init_worker.run)
             self.init_worker.finished.connect(self.init_thread.quit)
@@ -370,14 +375,61 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.information_box("You haven't opened a file.","Error")
       
-    def setting_window(self):
-        print("A Setting Window")
-        pass
+    def open_setting_window(self):
+        self.setting_window.show()
 
     def about_window(self):
-        print("An About Window")
-        pass
+        self.information_box("Author: HangbaSteve\nSupport Link: https://github.com/Hangba/NNSE-Information","About")
         
+    def information_box(self, information, title = "Information"):
+        box = QtWidgets.QMessageBox()
+        box.setText(information)
+        box.setWindowTitle(title)
+        box.setIcon(QtWidgets.QMessageBox.Information)
+        box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        box.exec_()
+
+    def update_setting(self):
+        self.settings = self.setting_window.setting
+        self.grade_distribution_chart_output_threshold = self.settings["distribution_1_threshold"]
+        self.school_distribution_chart_output_threshold = self.settings["distribution_2_threshold"]
+
+class SettingWindow(QtWidgets.QDialog):
+    #A Class for setting window
+    def __init__(self,MainWindow:MainWindow):
+        super(SettingWindow, self).__init__()
+        uic.loadUi("settings.ui",self)
+        self.MainWindow = MainWindow
+        self.apply.clicked.connect(self.save_setting)
+        self.cancel.clicked.connect(self.close)
+
+    def save_setting(self,):
+        self.setting = {}
+        with open("settings.json","w") as file:
+            
+            self.setting["init_online"] = self.init_net.checkState()
+            try:
+                self.setting["distribution_1_threshold"] = float(self.grade_d_thre.text())
+                self.setting["distribution_2_threshold"] = float(self.school_d_thre.text())
+                json.dump(self.setting,file)
+                self.MainWindow.update_setting()
+                self.information_box("Applied Successfully!")
+                self.close()
+            except ValueError:
+                self.information_box("Input Error!","Error")
+                return None
+            
+        return self.setting
+
+    def load_setting(self):
+        with open("settings.json","r") as file:
+            self.setting = json.load(file)
+            self.init_net.setChecked(self.setting["init_online"])
+            self.grade_d_thre.setText(str(self.setting["distribution_1_threshold"]))
+            self.school_d_thre.setText(str(self.setting["distribution_2_threshold"]))
+
+        return self.setting
+
     def information_box(self, information, title = "Information"):
         box = QtWidgets.QMessageBox()
         box.setText(information)
@@ -444,12 +496,13 @@ class Initialise_Worker(QObject):
     finished = pyqtSignal()
     fail = pyqtSignal(object,object)
 
-    def __init__(self):
+    def __init__(self,ifonline = True):
         super().__init__()
+        self.ifonline = ifonline
 
     def run(self):
         try:
-            schoolCodeList = initialise()
+            schoolCodeList = initialise(self.ifonline)
             self.result.emit(schoolCodeList)
             self.finished.emit()
         except json.decoder.JSONDecodeError:
