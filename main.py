@@ -18,6 +18,7 @@ class MainWindow(QtWidgets.QMainWindow):
         #load settings
         self.setting_window = SettingWindow(self)
         self.settings = self.setting_window.load_setting()
+        self.update_setting()
 
         self.setWindowFlags(Qt.CustomizeWindowHint|Qt.WindowMinimizeButtonHint|Qt.WindowCloseButtonHint)
         self.setFixedSize(self.width(), self.height())
@@ -44,6 +45,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actionExport_as_Excel_File.triggered.connect(self.export_as_excel)
         self.setting.triggered.connect(self.open_setting_window)
         self.about.triggered.connect(self.about_window)
+        self.gradeDistribution.triggered.connect(self.grade_distribution)
+        self.schoolDistribution.triggered.connect(self.school_distribution)
+        self.estimation_chart.triggered.connect(self.draw_estimation_chart)
 
         self.schoolCodeSelection.currentIndexChanged.connect(self.choose_school)
         self.getCurrent.clicked.connect(self.get_current_information)
@@ -51,12 +55,32 @@ class MainWindow(QtWidgets.QMainWindow):
         self.loopStart.clicked.connect(self.circulate_thread)
         self.loopStop.clicked.connect(self.stop_circulating)
         
+    def draw_estimation_chart(self):
+        # draw a bar chart of estimation score
+        try:
+            
+            if not self.ifopenfile:
+                raise RuntimeWarning
+            
+            estimation_score_dict = {}
+            for fileName in self.realschoolList:
+                with self.current_file.open(f"{fileName}.json") as file:
+                    res:dict = analyse_data(json.load(file),self.gradeOrder)
+                    estimation_score_dict[res["schoolName"]] = estimate(
+                        res["summary"]["CombinedScore"],self.gradeOrder,self.estimation_index)
+            self.estimation_chart = bar_chart(estimation_score_dict)
+            avg_score = estimation_score_dict["Total Data"]
+            self.estimation_chart.set_title("Estimation Score\nAverage Score:{:.3f}".format(avg_score))
+            # self.estimation_chart.xaxis.
+            #if sum(list(estimation_score_dict.values()))/len(list(estimation_score_dict.values()))>=0.2:
+            #    self.estimation_chart.set_ylim(bottom=0,top=1)
+            plt.xticks(rotation = 90, fontsize = 8)
+            plt.show()
+            
+                
+        except RuntimeWarning:
+            self.information_box(f"You haven't opened a file!","Error")
 
-        self.gradeDistribution.triggered.connect(self.grade_distribution)
-        self.schoolDistribution.triggered.connect(self.school_distribution)
-
-        
-        
 
 
     def school_distribution(self):
@@ -340,7 +364,7 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
                 res:dict = analyse_data(json.load(file),self.gradeOrder)
-                summary_score = estimate(res['summary']['CombinedScore'],self.gradeOrder)
+                summary_score = estimate(res['summary']['CombinedScore'],self.gradeOrder,self.estimation_index)
                 
                 self.output.addItem(f"Total Registeration Number: {res['summary']['num']}")
                 self.output.addItem(f"Estimated Score:{round(summary_score,4)}")
@@ -393,6 +417,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings = self.setting_window.setting
         self.grade_distribution_chart_output_threshold = self.settings["distribution_1_threshold"]
         self.school_distribution_chart_output_threshold = self.settings["distribution_2_threshold"]
+        self.estimation_index = self.settings["estimation_index"]
 
 class SettingWindow(QtWidgets.QDialog):
     #A Class for setting window
@@ -411,6 +436,7 @@ class SettingWindow(QtWidgets.QDialog):
             try:
                 self.setting["distribution_1_threshold"] = float(self.grade_d_thre.text())
                 self.setting["distribution_2_threshold"] = float(self.school_d_thre.text())
+                self.setting["estimation_index"] = float(self.est_index.text())
                 json.dump(self.setting,file)
                 self.MainWindow.update_setting()
                 self.information_box("Applied Successfully!")
@@ -427,6 +453,7 @@ class SettingWindow(QtWidgets.QDialog):
             self.init_net.setChecked(self.setting["init_online"])
             self.grade_d_thre.setText(str(self.setting["distribution_1_threshold"]))
             self.school_d_thre.setText(str(self.setting["distribution_2_threshold"]))
+            self.est_index.setText(str(self.setting["estimation_index"]))
 
         return self.setting
 

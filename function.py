@@ -142,7 +142,19 @@ def pie_chart(data:dict, output_threshold = 0.03):
     ax.pie(number, labels = grade, autopct='%1.2f%%')
     return ax,ignored_schools,ignored_students
 
-     
+def bar_chart(data:dict):
+    # draw a bar chart
+    fig, ax = plt.subplots()
+    
+    school_names = list(data.keys())
+    score = list(data.values())
+    avg_score = data["Total Data"]
+    err = ["{:+}".format(round(sc-avg_score,2)) for sc in score]
+
+    bar_container = ax.bar(school_names,score)
+    ax.bar_label(bar_container,err)
+
+    return ax
 
 
 def get_save_single_school_data(schoolCode:int,status:int,filepath = "\\", ifvocational = False):
@@ -285,7 +297,7 @@ def initialise(ifonline = True):
 
     return general_list,vocational_list,grade_order
 
-def estimate(grade_dict:dict,gradeOrder,ifLinear = True, index = 2):
+def estimate(grade_dict:dict,gradeOrder,index:float = 2):
     #grade_dict:{"6A+":5,"5A+1A":999}
     #index: normalising constant
     #self.output.addItems([f"{l} : {res['summary']['CombinedScore'][l]}" for l in list(res['summary']['CombinedScore'])])
@@ -300,11 +312,8 @@ def estimate(grade_dict:dict,gradeOrder,ifLinear = True, index = 2):
     except ZeroDivisionError:
         return 0
     score/=len(gradeOrder)
-    if ifLinear:
-        #The linear score is very close to 1, so the function is needed to normalise it
-        return score
-    else:
-        return score**index
+
+    return score**index
 
 def get_code_to_name_dict():
     dict = {}

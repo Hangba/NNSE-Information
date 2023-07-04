@@ -464,6 +464,7 @@ p, li { white-space: pre-wrap; }
     </property>
     <addaction name="schoolDistribution"/>
     <addaction name="gradeDistribution"/>
+    <addaction name="estimation_chart"/>
    </widget>
    <widget class="QMenu" name="menuAbout">
     <property name="title">
@@ -527,6 +528,11 @@ p, li { white-space: pre-wrap; }
   <action name="about">
    <property name="text">
     <string>About Author</string>
+   </property>
+  </action>
+  <action name="estimation_chart">
+   <property name="text">
+    <string>Estimation Score Chart</string>
    </property>
   </action>
  </widget>

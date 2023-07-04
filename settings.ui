@@ -40,10 +40,10 @@
   <widget class="QGroupBox" name="groupBox">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>40</y>
-     <width>381</width>
-     <height>271</height>
+     <x>0</x>
+     <y>80</y>
+     <width>391</width>
+     <height>131</height>
     </rect>
    </property>
    <property name="font">
@@ -60,7 +60,7 @@
      <rect>
       <x>10</x>
       <y>30</y>
-      <width>361</width>
+      <width>381</width>
       <height>64</height>
      </rect>
     </property>
@@ -167,6 +167,44 @@
      <widget class="QCheckBox" name="init_net">
       <property name="text">
        <string>Online</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QWidget" name="">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>40</y>
+     <width>381</width>
+     <height>30</height>
+    </rect>
+   </property>
+   <layout class="QHBoxLayout" name="horizontalLayout_3">
+    <item>
+     <widget class="QLabel" name="label_4">
+      <property name="font">
+       <font>
+        <family>Consolas</family>
+        <pointsize>14</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>Estimation Score Index</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLineEdit" name="est_index">
+      <property name="font">
+       <font>
+        <family>Consolas</family>
+        <pointsize>14</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string/>
       </property>
      </widget>
     </item>
