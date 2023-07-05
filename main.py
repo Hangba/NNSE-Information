@@ -25,6 +25,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # fix window size
         self.show()
         self.types = ["instruction","directional","alter","guide","vocational"]
+        self.single_item_names = ["Sum Score","Chinese","Math","English","Physics","Chemistry","Politics & History"]
+        self.single_item = ["SumScore","ChineseLevel","MathLevel","EnglishLevel","PhysicsLevel","ChymistLevel","PoliticsLevel"]
         self.status = self.StatusNum.toPlainText()
         self.currentPath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0)))
         #register types
@@ -33,11 +35,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.default_font = QtGui.QFont("Consolas", 14)
         #self.icon = QtGui.QIcon("")
         matplotlib.rcParams["font.sans-serif"] = ["Dengxian", "Consolas"]
-
-        # set chart default threshold
-        self.grade_distribution_chart_output_threshold = self.settings["distribution_1_threshold"]
-        self.school_distribution_chart_output_threshold = self.settings["distribution_2_threshold"]
-        
 
         self.Menu_Online_Ping.triggered.connect(self.ping_thread)
         self.Menu_Online_Post.triggered.connect(self.post_thread)
@@ -67,10 +64,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 with self.current_file.open(f"{fileName}.json") as file:
                     res:dict = analyse_data(json.load(file),self.gradeOrder)
                     estimation_score_dict[res["schoolName"]] = estimate(
-                        res["summary"]["CombinedScore"],self.gradeOrder,self.estimation_index)
+                        res["summary"]["CombinedScore"],self.gradeOrder,self.settings["estimation_index"])
             self.estimation_chart = bar_chart(estimation_score_dict)
             avg_score = estimation_score_dict["Total Data"]
-            self.estimation_chart.set_title("Estimation Score\nAverage Score:{:.3f}".format(avg_score))
+            self.estimation_chart.set_title("Estimation Score of {}\nAverage Score:{:.3f}".format(res["schoolName"],avg_score))
             # self.estimation_chart.xaxis.
             #if sum(list(estimation_score_dict.values()))/len(list(estimation_score_dict.values()))>=0.2:
             #    self.estimation_chart.set_ylim(bottom=0,top=1)
@@ -79,24 +76,6 @@ class MainWindow(QtWidgets.QMainWindow):
             
                 
         except RuntimeWarning:
-            self.information_box(f"You haven't opened a file!","Error")
-
-
-
-    def school_distribution(self):
-        # get the pie chart of grade distribution in a single school
-        if self.ifopenfile:  
-            try:
-                with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
-                    res:dict = analyse_data(json.load(file),self.gradeOrder)
-                    self.school_distribution_chart,ig_grade,ig_stu= pie_chart(res["summary"]["CombinedScore"],self.school_distribution_chart_output_threshold)
-                    self.school_distribution_chart.set_title(
-                        f"Grade Distrubution of {res['schoolName']}\n({ig_grade} grade(s) is(are) ignored, {ig_stu} student(s) is(are) ignored.)")
-                    plt.show()
-
-            except KeyError as e:
-                self.information_box(f"You haven't selected a school!\n{e}","Error")
-        else:
             self.information_box(f"You haven't opened a file!","Error")
 
     def grade_distribution(self):
@@ -118,17 +97,19 @@ class MainWindow(QtWidgets.QMainWindow):
             file_list = self.realschoolList.copy()
             file_list.remove("Total")
 
+            number = 0
+
             for fileName in file_list:
                 with self.current_file.open(f"{fileName}.json") as file:
                     
                     res:dict = analyse_data(json.load(file),self.gradeOrder)
                     if target_grade in list(res["summary"]["CombinedScore"].keys()):
                         distribution[res["schoolName"]] = res["summary"]["CombinedScore"][target_grade]
-
-            self.grade_distribution_chart,ig_school,ig_stu = pie_chart(distribution,self.grade_distribution_chart_output_threshold)
-            self.grade_distribution_chart.set_title(f"School Distribution of {target_grade}\n({ig_school} school(s) is(are) ignored, {ig_stu} student(s) is(are) ignored.)")
+                        number+=res["summary"]["CombinedScore"][target_grade]
+            distribution = {f"{k} ({v}/{number})" : v for k,v in distribution.items()}
+            self.grade_distribution_chart,ig_school,ig_stu = pie_chart(distribution,self.settings["distribution_1_threshold"])
+            self.grade_distribution_chart.set_title(f"School Distribution of {target_grade}\n({ig_school} school(s) is(are) omitted. {ig_stu} student(s) is(are) omitted.)")
             plt.show()
-            
                 
         except RuntimeWarning:
             self.information_box(f"You haven't opened a file!","Error")
@@ -140,6 +121,21 @@ class MainWindow(QtWidgets.QMainWindow):
         except RuntimeError:
             self.information_box("The grade is invalid!","Error")
 
+    def school_distribution(self):
+        # get the pie chart of grade distribution in a single school
+        if self.ifopenfile:  
+            try:
+                with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
+                    res:dict = analyse_data(json.load(file),self.gradeOrder)
+                    self.school_distribution_chart,ig_grade,ig_stu= pie_chart(res["summary"]["CombinedScore"],self.settings["distribution_2_threshold"])
+                    self.school_distribution_chart.set_title(
+                        f"Grade Distrubution of {res['schoolName']}\n({ig_grade} grade(s) is(are) omitted. {ig_stu} student(s) is(are) omitted.)")
+                    plt.show()
+
+            except KeyError as e:
+                self.information_box(f"You haven't selected a school!\n{e}","Error")
+        else:
+            self.information_box(f"You haven't opened a file!","Error")
 
     def get_current_information(self):
         self.status = self.StatusNum.toPlainText()
@@ -182,8 +178,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.information_box(f"Get current registeration data successfully.{len(self.realschoolList) - 1}/{num}")
         else:
             self.information_box(f"Get current registeration data incompletely successfully.{len(self.realschoolList) - 1}/{num}")
-
-        
 
     def select_file(self):
         if self.ifinitialise:
@@ -275,7 +269,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # Start the thread
         self.thread2.start()
 
-
     def ping_thread(self):
         self.statusbar.showMessage("Pinging www.nnzkzs.com.")
         # Create a QThread object and a worker object
@@ -292,7 +285,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker1.result.connect(lambda *args: self.information_box(*args))
         # Start the thread
         self.thread1.start()
-
 
     def circulate_thread(self):
         self.status = self.StatusNum.toPlainText()
@@ -318,7 +310,6 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.information_box("You haven't initialised!","Error")
         
-
     def stop_circulating(self):
         # stop circulating proactively
         if hasattr(self,"circulate_worker"):
@@ -364,12 +355,22 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
                 res:dict = analyse_data(json.load(file),self.gradeOrder)
-                summary_score = estimate(res['summary']['CombinedScore'],self.gradeOrder,self.estimation_index)
+                number = res["summary"]["num"]
+
+                summary_score = estimate(res['summary']['CombinedScore'],self.gradeOrder,self.settings["estimation_index"])
                 
                 self.output.addItem(f"Total Registeration Number: {res['summary']['num']}")
                 self.output.addItem(f"Estimated Score:{round(summary_score,4)}")
-                self.output.addItems([f"{l} : {res['summary']['CombinedScore'][l]}" for l in list(res['summary']['CombinedScore'])]) 
+                self.output.addItem("-- Detailed Combined Grade --")
+                self.output.addItems([f"{l} : {res['summary']['CombinedScore'][l]}  ({res['summary']['CombinedScore'][l]/number:.2%})" for l in list(res['summary']['CombinedScore'])]) 
                 #CombineScore output
+                self.output:QtWidgets.QListView.additem("") # add an empty line
+                # individual subject output
+                for i in range(len(self.settings["detailed_subject"])):
+                    if self.settings["detailed_subject"][i]:
+                        self.output.addItem(f"-- {self.single_item_names[i]} --")
+                        self.output.addItems([f"{l} : {res['summary'][self.single_item[i]][l]}  ({res['summary'][self.single_item[i]][l]/number:.2%})" 
+                                              for l in list(res['summary'][self.single_item[i]])]) 
                 
         except KeyError as e:
             self.information_box(f"You haven't selected a school!\n{e}","Error")
@@ -415,9 +416,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def update_setting(self):
         self.settings = self.setting_window.setting
-        self.grade_distribution_chart_output_threshold = self.settings["distribution_1_threshold"]
-        self.school_distribution_chart_output_threshold = self.settings["distribution_2_threshold"]
-        self.estimation_index = self.settings["estimation_index"]
+        self.status = self.StatusNum.toPlainText()
 
 class SettingWindow(QtWidgets.QDialog):
     #A Class for setting window
@@ -427,8 +426,13 @@ class SettingWindow(QtWidgets.QDialog):
         self.MainWindow = MainWindow
         self.apply.clicked.connect(self.save_setting)
         self.cancel.clicked.connect(self.close)
+        self.single_item = ["SumScore","ChineseLevel","MathLevel","EnglishLevel","PhysicsLevel","ChymistLevel","PoliticsLevel"]
+        
+        self.subjects_checkbox:list[QtWidgets.QCheckBox] = [self.sum_l,self.chinese_l,self.math_l,self.english_l,self.physics_l,self.chemistry_l,self.politics_l]
 
-    def save_setting(self,):
+
+
+    def save_setting(self):
         self.setting = {}
         with open("settings.json","w") as file:
             
@@ -437,6 +441,8 @@ class SettingWindow(QtWidgets.QDialog):
                 self.setting["distribution_1_threshold"] = float(self.grade_d_thre.text())
                 self.setting["distribution_2_threshold"] = float(self.school_d_thre.text())
                 self.setting["estimation_index"] = float(self.est_index.text())
+                self.setting["detailed_subject"] = [c.checkState() for c in self.subjects_checkbox]
+
                 json.dump(self.setting,file)
                 self.MainWindow.update_setting()
                 self.information_box("Applied Successfully!")
@@ -450,6 +456,8 @@ class SettingWindow(QtWidgets.QDialog):
     def load_setting(self):
         with open("settings.json","r") as file:
             self.setting = json.load(file)
+            for c in range(len(self.subjects_checkbox)):
+                self.subjects_checkbox[c].setChecked(self.setting["detailed_subject"][c])
             self.init_net.setChecked(self.setting["init_online"])
             self.grade_d_thre.setText(str(self.setting["distribution_1_threshold"]))
             self.school_d_thre.setText(str(self.setting["distribution_2_threshold"]))

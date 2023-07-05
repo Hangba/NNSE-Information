@@ -229,7 +229,10 @@ def sort_dict_by_list(dict:dict,grade_list:list):
 def analyse_data(school_data,gradeOrder):
     # Get outline
     # summary = {"num":int,"CombinedScore:dict"}
+    # student_data {"instruction":[{'Serial': '1', 'Order': '1', 'SumScore': 'A+', 'CombinedScore': '6A+', 'ChineseLevel': 'A+', 'MathLevel': 'A+', 'EnglishLevel': 'A+', 'PhysicsLevel': 'A+', 'ChymistLevel': 'A+', 'PoliticsLevel': 'A+', 'Experiment': 'p'}]}
     types = ["instruction","directional","alter","guide","vocational"]
+    order = ["A+","A","B+","B","C+","C","D","E"]
+    single_item = ["SumScore","ChineseLevel","MathLevel","EnglishLevel","PhysicsLevel","ChymistLevel","PoliticsLevel"]
     total = []
     classification = {t: {} for t in types}
     summary = {}
@@ -240,8 +243,12 @@ def analyse_data(school_data,gradeOrder):
             classification[t]["num"] = len(school_data[t])
             # get registeration number 
             
-            classification[t]["CombinedScore"] = dict(Counter([l["CombinedScore"] for l in school_data[t]]))
-            classification[t]["CombinedScore"] = sort_dict_by_list(classification[t]["CombinedScore"],gradeOrder)
+            classification[t]["CombinedScore"] = sort_dict_by_list(dict(Counter([l["CombinedScore"] for l in school_data[t]])),gradeOrder)
+
+            for item in single_item:
+                classification[t][item] = sort_dict_by_list(
+                    dict(Counter([l[item] for l in school_data[t]])),order)
+
         else:
             classification[t]["num"] = 0
             classification[t]["CombinedScore"] = {}
@@ -250,8 +257,10 @@ def analyse_data(school_data,gradeOrder):
     
 
     summary["num"] = len(total)
-    summary["CombinedScore"] = dict(Counter([l["CombinedScore"] for l in total]))
-    summary["CombinedScore"] = sort_dict_by_list(summary["CombinedScore"],gradeOrder)
+    for item in single_item:
+                summary[item] = sort_dict_by_list(dict(Counter([l[item] for l in total])),order)
+                
+    summary["CombinedScore"] = sort_dict_by_list(dict(Counter([l["CombinedScore"] for l in total])),gradeOrder)
 
     return {"summary":summary,"classification":classification,"schoolName":school_data["schoolName"]}
 
