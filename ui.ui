@@ -448,7 +448,7 @@ p, li { white-space: pre-wrap; }
      <string>File</string>
     </property>
     <addaction name="Menu_File_Open"/>
-    <addaction name="actionOpen_Series_Files"/>
+    <addaction name="series"/>
     <addaction name="actionExport_as_Excel_File"/>
    </widget>
    <widget class="QMenu" name="menuTest_2">
@@ -510,7 +510,7 @@ p, li { white-space: pre-wrap; }
     <string>Current School Grade Distrubution</string>
    </property>
   </action>
-  <action name="actionOpen_Series_Files">
+  <action name="series">
    <property name="text">
     <string>Open Series Files</string>
    </property>

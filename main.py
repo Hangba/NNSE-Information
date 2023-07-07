@@ -17,6 +17,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         #load settings
         self.setting_window = SettingWindow(self)
+        self.series_window = SeriesWindow(self)
         self.settings = self.setting_window.load_setting()
         self.update_setting()
 
@@ -45,6 +46,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gradeDistribution.triggered.connect(self.grade_distribution)
         self.schoolDistribution.triggered.connect(self.school_distribution)
         self.estimation_chart.triggered.connect(self.draw_estimation_chart)
+        self.series.triggered.connect(self.open_series_window)
 
         self.schoolCodeSelection.currentIndexChanged.connect(self.choose_school)
         self.getCurrent.clicked.connect(self.get_current_information)
@@ -65,9 +67,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     res:dict = analyse_data(json.load(file),self.gradeOrder)
                     estimation_score_dict[res["schoolName"]] = estimate(
                         res["summary"]["CombinedScore"],self.gradeOrder,self.settings["estimation_index"])
-            self.estimation_chart = bar_chart(estimation_score_dict)
+            self.estimation_bar_chart = bar_chart(estimation_score_dict)
             avg_score = estimation_score_dict["Total Data"]
-            self.estimation_chart.set_title("Estimation Score of {}\nAverage Score:{:.3f}".format(res["schoolName"],avg_score))
+            self.estimation_bar_chart.set_title("Estimation Score of {}\nAverage Score:{:.3f}".format(res["schoolName"],avg_score))
             # self.estimation_chart.xaxis.
             #if sum(list(estimation_score_dict.values()))/len(list(estimation_score_dict.values()))>=0.2:
             #    self.estimation_chart.set_ylim(bottom=0,top=1)
@@ -137,6 +139,12 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.information_box(f"You haven't opened a file!","Error")
 
+    def open_series_window(self):
+        if self.ifinitialise:
+            self.series_window.show()
+        else:
+            self.information_box("You must initialise the software first!","Error")
+
     def get_current_information(self):
         self.status = self.StatusNum.toPlainText()
         
@@ -160,7 +168,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.get_worker.update.connect(self.update_progress)
             self.get_thread.start()
         else:
-            self.information_box("You haven't initialised!","Error")
+            self.information_box("You must initialise the software first!","Error")
 
     def get_current_information_slot(self,fileName,savePath):
         self.statusbar.showMessage("Finish.")
@@ -182,9 +190,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def select_file(self):
         if self.ifinitialise:
             filePath, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose File", os.getcwd(), "Zip Files(*.zip);;All Files (*.*)")
-            self.open_offline_file(filePath)
+            if bool(filePath):
+                self.open_offline_file(filePath)
         else:
-            self.information_box("You haven't initialised!","Error")
+            self.information_box("You must initialise the software first!","Error")
 
     def open_offline_file(self,filePath):
         try:
@@ -308,7 +317,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.circulate_threading.finished.connect(self.circulate_threading.deleteLater)
             self.circulate_threading.start()
         else:
-            self.information_box("You haven't initialised!","Error")
+            self.information_box("You must initialise the software first!","Error")
         
     def stop_circulating(self):
         # stop circulating proactively
@@ -326,6 +335,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.progressBar.close()
 
     def create_dialog_window(self):
+        # Show the progress of getting current information
+
         self.progressBar = QtWidgets.QProgressDialog(self,flags=Qt.WindowMaximizeButtonHint | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowMinimizeButtonHint)
         self.progressBar.setWindowTitle("Progress")
         self.progressBar.setFixedSize(350,80)
@@ -364,7 +375,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.output.addItem("-- Detailed Combined Grade --")
                 self.output.addItems([f"{l} : {res['summary']['CombinedScore'][l]}  ({res['summary']['CombinedScore'][l]/number:.2%})" for l in list(res['summary']['CombinedScore'])]) 
                 #CombineScore output
-                self.output:QtWidgets.QListView.additem("") # add an empty line
+                self.output.additem(" ") # add an empty line
                 # individual subject output
                 for i in range(len(self.settings["detailed_subject"])):
                     if self.settings["detailed_subject"][i]:
@@ -404,7 +415,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setting_window.show()
 
     def about_window(self):
-        self.information_box("Author: HangbaSteve\nSupport Link: https://github.com/Hangba/NNSE-Information","About")
+        self.information_box(
+            "Author: HangbaSteve\nEmail: hangbamaybe@gmail.com\n\
+                Support Link: https://github.com/Hangba/NNSE-Information","About")
         
     def information_box(self, information, title = "Information"):
         box = QtWidgets.QMessageBox()
@@ -429,8 +442,6 @@ class SettingWindow(QtWidgets.QDialog):
         self.single_item = ["SumScore","ChineseLevel","MathLevel","EnglishLevel","PhysicsLevel","ChymistLevel","PoliticsLevel"]
         
         self.subjects_checkbox:list[QtWidgets.QCheckBox] = [self.sum_l,self.chinese_l,self.math_l,self.english_l,self.physics_l,self.chemistry_l,self.politics_l]
-
-
 
     def save_setting(self):
         self.setting = {}
@@ -543,8 +554,7 @@ class Initialise_Worker(QObject):
         except json.decoder.JSONDecodeError:
             self.fail.emit("Initialisation failed. Please check your network and don't use proxy.","Error")
         finally:
-            self.finished.emit()
-        
+            self.finished.emit()    
 
 class GetAll_Worker(QObject):
     # For thread getting all information
@@ -564,6 +574,74 @@ class GetAll_Worker(QObject):
         get_sequence_school_data(self.schoolCodeList,self.status,self.time,self.savePath,self.update.emit,self.ifvocational)
         self.result.emit(self.time,self.savePath)
         self.finished.emit()
+
+class SeriesWindow(QtWidgets.QDialog):
+
+    def __init__(self,MainWindow:MainWindow):
+        super(SeriesWindow, self).__init__()
+        uic.loadUi("series.ui",self)
+        self.MainWindow = MainWindow
+        self.filepaths = []
+        self.output:QtWidgets.QListWidget
+
+        # connections
+        self.add.clicked.connect(self.add_files)
+        self.deletion.clicked.connect(self.delete_selection)
+        self.clear.clicked.connect(self.clear_list)
+        self.load.clicked.connect(self.load_files)
+
+    def add_files(self):
+        # add files to list and class attributes
+        filepaths, _ = QtWidgets.QFileDialog.getOpenFileNames(self,"Choose Schools", os.getcwd(), "Zip Files(*.zip);;All Files (*.*)")
+        # returns a list of absolute path
+        for path in filepaths:
+            if path not in self.filepaths:
+                self.filepaths.append(path)
+
+        filenames = [os.path.basename(path) for path in self.filepaths]
+        self.output.clear()
+        self.output.addItems(filenames)
+        
+
+    def delete_selection(self):
+        
+        selected = self.output.selectedIndexes()
+        if bool(selected):
+            line = self.output.selectedIndexes()[0].row()
+            self.output.takeItem(line)
+            del self.filepaths[line]
+        else:
+            self.MainWindow.information_box("You haven't selected a file!","Error")
+
+    def clear_list(self):
+        self.filepaths = []
+        self.output.clear()
+
+    def load_files(self):
+        self.timelist = []
+
+        try:
+            if not bool(self.filepaths):
+                raise RuntimeWarning
+            
+            for filepath in self.filepaths:
+                file = zipfile.ZipFile(filepath)
+                current_file = file.open("metadata.json")
+                metadata = json.load(current_file)
+                self.timelist.append(metadata["runTime"])
+
+            
+                maxRunTime = time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(max(self.timelist)))
+                minRunTime = time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(min(self.timelist)))
+            
+
+            self.time1.setText(minRunTime)
+            self.time2.setText(maxRunTime)
+        except RuntimeWarning:
+            self.MainWindow.information_box("You haven't selected files!","Error")
+
+        
+        
 
 app = QtWidgets.QApplication(sys.argv)
 window = MainWindow()
