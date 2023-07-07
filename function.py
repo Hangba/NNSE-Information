@@ -83,18 +83,21 @@ def get_single_school_data(schoolCode:int,status:int,ifvocational = False):
     # Data structure:{"schoolCode" : schoolCode, "schoolName":schoolName, "instruction" : list...}
     data = dict()
     types = ["instruction","directional","alter","guide","vocational"]
+    ctn_dict = get_code_to_name_dict()
     if not ifvocational:
         #vocational schools api doesn't need types
         for t in types:
             d = {'schoolCode':schoolCode,"type":t,"status":status}
             url=f"http://www.nnzkzs.com/api/services/app/publicityDetail/GetGeneralDetail?schoolCode={schoolCode}&type={t}&status={status}"
             try:
+
                 res=requests.post(url,data=d)
                 if res.status_code == 502:
                     raise BufferError
                 if not bool(res.json()["result"]):
                     continue
-                data["schoolName"] = json.loads(res.json()["result"])["schoolName"] # Get school name
+
+                data["schoolName"] = ctn_dict[int(json.loads(res.json()["result"])["schoolCode"])] # Get school name
                 data[t] = json.loads(res.json()["result"])["lists"] # Get registeration data     
             except TypeError as e:
                 print(e)
@@ -223,9 +226,6 @@ def sort_dict_by_list(dict:dict,grade_list:list):
                 new_dict[l] = dict[l]
     return new_dict
 
-
-
-
 def analyse_data(school_data,gradeOrder):
     # Get outline
     # summary = {"num":int,"CombinedScore:dict"}
@@ -265,7 +265,7 @@ def analyse_data(school_data,gradeOrder):
     return {"summary":summary,"classification":classification,"schoolName":school_data["schoolName"]}
 
 def get_school_code_list(url:str, ifPost = True):
-    # get school code list online
+    # get school code list online, now is deserted
     try:
         if ifPost:
             res = requests.post(url)
@@ -278,19 +278,19 @@ def get_school_code_list(url:str, ifPost = True):
 
 def initialise(ifonline = True):
     # get 2 school code online or offline, depends on the api's availablity
-    general_api = "http://www.nnzkzs.com/api/services/app/generalPublicity/GetPublicity"
-    vocational_api = "http://www.nnzkzs.com/api/services/app/vocationalPublicity/GetPublicity"
+    general_api = "http://www.nnzkzs.com/api/services/app/generalProgress/GetProgress"
+    vocational_api = "http://www.nnzkzs.com/api/services/app/vocationalProgress/GetProgress"
     filePath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0))) + "\\Out-of-date Information\\schoolCode.json"
     with open(filePath, "r",encoding="utf8") as file:
         #get school code list online if api is available
         if ifonline:
             if APIAvailablity(general_api, ifPost=False):
-                general_list = get_school_code_list(general_api, ifPost=False)
+                general_list = list(get_code_to_name_dict(1).keys())
             else:
                 code_dict = json.load(file)
                 general_list = code_dict["general"]
             if APIAvailablity(vocational_api):
-                vocational_list = get_school_code_list(vocational_api)
+                vocational_list = list(get_code_to_name_dict(2).keys())
             else:
                 code_dict = json.load(file)
                 vocational_list = code_dict["vocational"]
@@ -324,7 +324,9 @@ def estimate(grade_dict:dict,gradeOrder,index:float = 2):
 
     return score**index
 
-def get_code_to_name_dict():
+def get_code_to_name_dict(function = 0):
+    # function: 0 - all codes; 1 - general schools; 2 - vocational schools
+    # GetProgress has the greatest timeliness
     dict = {}
     url = "http://www.nnzkzs.com/api/services/app/vocationalProgress/GetProgress"
     url2 = "http://www.nnzkzs.com/api/services/app/generalProgress/GetProgress"
@@ -332,7 +334,14 @@ def get_code_to_name_dict():
     res2 = requests.get(url2)  #general data needs get method
     try:
         if res.status_code==200 and res2.status_code==200:
-            list = json.loads(res.json()["result"])["progress"]+json.loads(res2.json()["result"])["progress"]
+            if function == 0:
+                list = json.loads(res.json()["result"])["progress"]+json.loads(res2.json()["result"])["progress"]
+            elif function == 1:
+                list = json.loads(res2.json()["result"])["progress"]
+            elif function == 2:
+                list = json.loads(res.json()["result"])["progress"]
+            else:
+                return None
             for l in list:
                 dict[int(l["SchoolCode"])] = l["SchoolName"]
             return dict

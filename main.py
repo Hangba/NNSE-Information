@@ -14,6 +14,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
         uic.loadUi("ui.ui",self)
+        self.icon = QtGui.QIcon("ico.ico")
+        self.setWindowIcon(self.icon)
 
         #load settings
         self.setting_window = SettingWindow(self)
@@ -24,6 +26,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowFlags(Qt.CustomizeWindowHint|Qt.WindowMinimizeButtonHint|Qt.WindowCloseButtonHint)
         self.setFixedSize(self.width(), self.height())
         # fix window size
+
         self.show()
         self.types = ["instruction","directional","alter","guide","vocational"]
         self.single_item_names = ["Sum Score","Chinese","Math","English","Physics","Chemistry","Politics & History"]
@@ -88,7 +91,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
             if not self.ifopenfile:
                 raise RuntimeWarning
-            target_grade, ifsuccess = QtWidgets.QInputDialog.getText(self,"Input Grade","Please input a valid grade.")
+            
+            dialog = QtWidgets.QInputDialog(self)
+            dialog.setFont(self.default_font)
+            dialog.setWindowIcon(self.icon)
+
+            target_grade, ifsuccess = dialog.getText(self,"Input Grade","Please input a valid grade.")
 
             if not ifsuccess:
                 raise NotImplementedError("Process was canceled")
@@ -109,7 +117,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         distribution[res["schoolName"]] = res["summary"]["CombinedScore"][target_grade]
                         number+=res["summary"]["CombinedScore"][target_grade]
             distribution = {f"{k} ({v}/{number})" : v for k,v in distribution.items()}
-            self.grade_distribution_chart,ig_school,ig_stu = pie_chart(distribution,self.settings["distribution_1_threshold"])
+            self.grade_distribution_chart,ig_school,ig_stu = pie_chart(distribution,self.settings["distribution_school_threshold"])
             self.grade_distribution_chart.set_title(f"School Distribution of {target_grade}\n({ig_school} school(s) is(are) omitted. {ig_stu} student(s) is(are) omitted.)")
             plt.show()
                 
@@ -129,7 +137,7 @@ class MainWindow(QtWidgets.QMainWindow):
             try:
                 with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
                     res:dict = analyse_data(json.load(file),self.gradeOrder)
-                    self.school_distribution_chart,ig_grade,ig_stu= pie_chart(res["summary"]["CombinedScore"],self.settings["distribution_2_threshold"])
+                    self.school_distribution_chart,ig_grade,ig_stu= pie_chart(res["summary"]["CombinedScore"],self.settings["distribution_grade_threshold"])
                     self.school_distribution_chart.set_title(
                         f"Grade Distrubution of {res['schoolName']}\n({ig_grade} grade(s) is(are) omitted. {ig_stu} student(s) is(are) omitted.)")
                     plt.show()
@@ -214,6 +222,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ifopenfile = True
 
             self.filePathLabel.setText(filePath)
+            self.number.setText(str(len(self.realschoolList)-1))
             self.fileTimeLabel.setText(time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(runTime)))
 
         except KeyError:
@@ -339,6 +348,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.progressBar = QtWidgets.QProgressDialog(self,flags=Qt.WindowMaximizeButtonHint | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowMinimizeButtonHint)
         self.progressBar.setWindowTitle("Progress")
+        self.progressBar.setWindowIcon(self.icon)
         self.progressBar.setFixedSize(350,80)
         self.progressBar.setLabelText("Getting current data...")
         self.progressBar.setMinimumDuration(5)  # confirm that the progress dialog must appear
@@ -375,7 +385,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.output.addItem("-- Detailed Combined Grade --")
                 self.output.addItems([f"{l} : {res['summary']['CombinedScore'][l]}  ({res['summary']['CombinedScore'][l]/number:.2%})" for l in list(res['summary']['CombinedScore'])]) 
                 #CombineScore output
-                self.output.additem(" ") # add an empty line
+                self.output.addItem(" ") # add an empty line
                 # individual subject output
                 for i in range(len(self.settings["detailed_subject"])):
                     if self.settings["detailed_subject"][i]:
@@ -416,13 +426,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def about_window(self):
         self.information_box(
-            "Author: HangbaSteve\nEmail: hangbamaybe@gmail.com\n\
-                Support Link: https://github.com/Hangba/NNSE-Information","About")
+            "Author: HangbaSteve\nEmail: hangbamaybe@gmail.com\nSupport Link: https://github.com/Hangba/NNSE-Information\n\"Every perverse person has his prison. (NNSZWST)\"","About")
         
     def information_box(self, information, title = "Information"):
         box = QtWidgets.QMessageBox()
         box.setText(information)
         box.setWindowTitle(title)
+        box.setWindowIcon(self.icon)
         box.setIcon(QtWidgets.QMessageBox.Information)
         box.setStandardButtons(QtWidgets.QMessageBox.Ok)
         box.exec_()
@@ -437,6 +447,8 @@ class SettingWindow(QtWidgets.QDialog):
         super(SettingWindow, self).__init__()
         uic.loadUi("settings.ui",self)
         self.MainWindow = MainWindow
+        self.icon = QtGui.QIcon("ico.ico")
+        self.setWindowIcon(self.icon)
         self.apply.clicked.connect(self.save_setting)
         self.cancel.clicked.connect(self.close)
         self.single_item = ["SumScore","ChineseLevel","MathLevel","EnglishLevel","PhysicsLevel","ChymistLevel","PoliticsLevel"]
@@ -449,8 +461,8 @@ class SettingWindow(QtWidgets.QDialog):
             
             self.setting["init_online"] = self.init_net.checkState()
             try:
-                self.setting["distribution_1_threshold"] = float(self.grade_d_thre.text())
-                self.setting["distribution_2_threshold"] = float(self.school_d_thre.text())
+                self.setting["distribution_grade_threshold"] = float(self.grade_d_thre.text())
+                self.setting["distribution_school_threshold"] = float(self.school_d_thre.text())
                 self.setting["estimation_index"] = float(self.est_index.text())
                 self.setting["detailed_subject"] = [c.checkState() for c in self.subjects_checkbox]
 
@@ -470,8 +482,8 @@ class SettingWindow(QtWidgets.QDialog):
             for c in range(len(self.subjects_checkbox)):
                 self.subjects_checkbox[c].setChecked(self.setting["detailed_subject"][c])
             self.init_net.setChecked(self.setting["init_online"])
-            self.grade_d_thre.setText(str(self.setting["distribution_1_threshold"]))
-            self.school_d_thre.setText(str(self.setting["distribution_2_threshold"]))
+            self.grade_d_thre.setText(str(self.setting["distribution_grade_threshold"]))
+            self.school_d_thre.setText(str(self.setting["distribution_school_threshold"]))
             self.est_index.setText(str(self.setting["estimation_index"]))
 
         return self.setting
@@ -480,6 +492,7 @@ class SettingWindow(QtWidgets.QDialog):
         box = QtWidgets.QMessageBox()
         box.setText(information)
         box.setWindowTitle(title)
+        box.setWindowIcon(self.icon)
         box.setIcon(QtWidgets.QMessageBox.Information)
         box.setStandardButtons(QtWidgets.QMessageBox.Ok)
         box.exec_()
@@ -582,13 +595,20 @@ class SeriesWindow(QtWidgets.QDialog):
         uic.loadUi("series.ui",self)
         self.MainWindow = MainWindow
         self.filepaths = []
+        self.icon = MainWindow.icon
+        self.setWindowIcon(self.icon)
+        self.ctn_list = get_code_to_name_dict()
         self.output:QtWidgets.QListWidget
+        self.ifload = False
 
         # connections
         self.add.clicked.connect(self.add_files)
         self.deletion.clicked.connect(self.delete_selection)
         self.clear.clicked.connect(self.clear_list)
         self.load.clicked.connect(self.load_files)
+        self.analyse.clicked.connect(self.analyse_data)
+
+        self.comboBox.currentIndexChanged.connect(self.choose_school)
 
     def add_files(self):
         # add files to list and class attributes
@@ -601,6 +621,7 @@ class SeriesWindow(QtWidgets.QDialog):
         filenames = [os.path.basename(path) for path in self.filepaths]
         self.output.clear()
         self.output.addItems(filenames)
+        self.ifload = False
         
 
     def delete_selection(self):
@@ -610,39 +631,140 @@ class SeriesWindow(QtWidgets.QDialog):
             line = self.output.selectedIndexes()[0].row()
             self.output.takeItem(line)
             del self.filepaths[line]
+            self.ifload = False
         else:
             self.MainWindow.information_box("You haven't selected a file!","Error")
 
     def clear_list(self):
         self.filepaths = []
         self.output.clear()
+        self.general_radio:QtWidgets.QRadioButton
+        self.ifload = False
 
     def load_files(self):
         self.timelist = []
+        self.schoolList = [] # test if all schools are the same
 
         try:
             if not bool(self.filepaths):
                 raise RuntimeWarning
             
+            if self.general_radio.isChecked():
+                # confirm the school kind
+                self.schoolKind = "general"
+            else:
+                self.schoolKind = "vocational"
+            
             for filepath in self.filepaths:
+
                 file = zipfile.ZipFile(filepath)
                 current_file = file.open("metadata.json")
                 metadata = json.load(current_file)
-                self.timelist.append(metadata["runTime"])
 
-            
-                maxRunTime = time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(max(self.timelist)))
-                minRunTime = time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(min(self.timelist)))
-            
+                if metadata["schoolKind"] != self.schoolKind:
+                    continue
+
+                self.timelist.append(metadata["runTime"])
+                self.schoolList.append(metadata["schoolList"])
+                
+            maxRunTime = time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(max(self.timelist)))
+            minRunTime = time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(min(self.timelist)))
+
+            if self.schoolList.count(self.schoolList[0]) != len(self.schoolList):
+                raise RuntimeError
+            # test for school list
+            self.schoolList = [str(schoolCode) for schoolCode in self.schoolList[0]]
+
+            self.comboBox.addItems(self.schoolList)
 
             self.time1.setText(minRunTime)
             self.time2.setText(maxRunTime)
+            self.ifload = True
+
         except RuntimeWarning:
             self.MainWindow.information_box("You haven't selected files!","Error")
+        except RuntimeError:
+            # the school lists are not the same
+            self.MainWindow.information_box("The files have different school list.","Error")
+
+    def choose_school(self):
+        if bool(self.comboBox.currentText()):
+            self.current_code:int = int(self.comboBox.currentText())
+        self.school_name = self.ctn_list[self.current_code]
+        self.school_name_label.setText(self.school_name)
+
+    def analyse_data(self):
+        if self.ifload:
+            self.time_to_path_dict = {}
+            self.school_data = {}
+            self.timelist = []
+
+            for filepath in self.filepaths:
+                zfile = zipfile.ZipFile(filepath)
+                runtime = json.load(zfile.open("metadata.json"))["runTime"]
+                file = zfile.open(f"{self.current_code}.json")
+
+                self.school_data[runtime] = json.load(file)
+                self.time_to_path_dict[runtime] = filepath
+                self.timelist.append(runtime)
+                file.close()
+
+            self.seriesAnalyseWindow = Series_Analyse_Window(self.MainWindow,self)
+            self.seriesAnalyseWindow.show()
+
+class Series_Analyse_Window(QtWidgets.QDialog):
+
+    def __init__(self,MainWindow:MainWindow,SeriesWindow:SeriesWindow):
+        super(Series_Analyse_Window, self).__init__()
+        uic.loadUi("series_analysis.ui",self)
+        self.MainWindow = MainWindow
+        self.seriesWindow = SeriesWindow
+        self.setWindowIcon(self.MainWindow.icon)
+
+        self.rank_trend.clicked.connect(self.rank_trend_folding_line)
+
+    def rank_trend_folding_line(self):
+        dialog = QtWidgets.QInputDialog(self.MainWindow)
+        dialog.setFont(self.MainWindow.default_font)
+        dialog.setWindowIcon(self.MainWindow.icon)
+
+        try:
+            target_grade, ifsuccess = dialog.getText(self.MainWindow,"Input Grade","Please input a valid grade.")
+            if not ifsuccess:
+                raise NotImplementedError
+            
+            if target_grade not in self.MainWindow.gradeOrder:
+                raise RuntimeError
+            
+            self.seriesWindow.timelist.sort()
+            relative_timelist = [str(round(t - self.seriesWindow.timelist[0],2)) for t in self.seriesWindow.timelist]
+            # get the relative time to show 
+            res_list = []
+            for t in self.seriesWindow.timelist:
+                res:dict = analyse_data(self.seriesWindow.school_data[t],self.MainWindow.gradeOrder)
+                if target_grade not in list(res["summary"]["CombinedScore"].keys()):
+                    res["summary"]["CombinedScore"][target_grade] = 0
+                else: res_list.append(res["summary"]["CombinedScore"][target_grade])
+            
+            fig, ax = plt.subplots()
+            ax.plot(relative_timelist,res_list)
+            ax.set_title(f"{target_grade} Students Distributed in {self.seriesWindow.school_name}")
+            ax.set_xlabel("Relative Time")
+            ax.set_ylabel("Student Number")
+            for a, b in zip(relative_timelist, res_list):
+                # show data label
+                ax.text(a,b,str(b))
+            plt.show()
+            
+        except NotImplementedError:
+            pass
+        
+        except RuntimeError:
+            self.MainWindow.information_box("The grade is invalid!","Error")
 
         
-        
 
+        
 app = QtWidgets.QApplication(sys.argv)
 window = MainWindow()
 app.exec_()

@@ -74,17 +74,17 @@
     <string>Select School</string>
    </property>
   </widget>
-  <widget class="QLabel" name="school_name_label">
+  <widget class="QLabel" name="label_5">
    <property name="geometry">
     <rect>
      <x>10</x>
      <y>430</y>
-     <width>381</width>
+     <width>121</width>
      <height>21</height>
     </rect>
    </property>
    <property name="text">
-    <string>School Name</string>
+    <string>School Name:</string>
    </property>
   </widget>
   <widget class="QComboBox" name="comboBox">
@@ -110,12 +110,12 @@
     <string>Analyse</string>
    </property>
   </widget>
-  <widget class="QWidget" name="">
+  <widget class="QWidget" name="layoutWidget">
    <property name="geometry">
     <rect>
      <x>270</x>
      <y>30</y>
-     <width>121</width>
+     <width>125</width>
      <height>301</height>
     </rect>
    </property>
@@ -167,7 +167,7 @@
     </item>
    </layout>
   </widget>
-  <widget class="QWidget" name="">
+  <widget class="QWidget" name="layoutWidget">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -223,6 +223,25 @@
      </widget>
     </item>
    </layout>
+  </widget>
+  <widget class="QLabel" name="school_name_label">
+   <property name="geometry">
+    <rect>
+     <x>140</x>
+     <y>430</y>
+     <width>251</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>DengXian</family>
+     <pointsize>11</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
   </widget>
  </widget>
  <resources/>
