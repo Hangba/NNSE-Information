@@ -1,5 +1,5 @@
 # NNSE-Information
-Nanning Secondary Examination, known as Nanning High School Entrance Examination, is the most important examination for middle school students in Nanning. This is a tool to view the registeration data of nanning high school conveniently with GUI. It was first come out in July, 2021.
+Nanning Secondary Examination, known as Nanning High School Entrance Examination, is the most important examination for middle school students in Nanning. This is a tool for viewing the registeration data of Nanning high school conveniently with GUI. It was first come out in July, 2021.
 
 ### Dependencies
 * openpyxl
