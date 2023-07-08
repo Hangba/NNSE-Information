@@ -1,5 +1,5 @@
 # NNSE-Information
-Nanning Secondary Examination, known as Nanning High School Entrance Examination, ) This is a tool to view the registeration data of Nanning High School conveniently with GUI. It was first come out in July, 2021.
+Nanning Secondary Examination, known as Nanning High School Entrance Examination, is the most important examination for middle school students in Nanning. This is a tool to view the registeration data of nanning high school conveniently with GUI. It was first come out in July, 2021.
 
 ### Dependencies
 * openpyxl
@@ -11,7 +11,7 @@ Nanning Secondary Examination, known as Nanning High School Entrance Examination
 ### How to Use
 * Initialise the software first. (You can choose whether to use offline config file in setting window. Initialising offline is fast but may have less timeliness.)
 * Choose the school type: general schools or vocational schools in radio buttons.
-* Click "Get Current Information" button to get information from API of www.nnzkzs.com and save the information into .zip file.
+* Click "Get Current Information" button to get information from the API of www.nnzkzs.com and save the information into a .zip file.
 * On finishing the getting process, the software will open the zip file automatically.
 * Select school code in the combo box. The school name will be showed in the label leftside. The enroling data will be showed in the list widget.
 * You can choose whether to show single subject situation in the setting window.
