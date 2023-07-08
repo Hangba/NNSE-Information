@@ -1,39 +1,46 @@
 # NNSE-Information
-This is a tool to view the registeration data of Nanning High School conveniently with GUI. It was first come out in July, 2021.
+Nanning Secondary Examination, known as Nanning High School Entrance Examination, ) This is a tool to view the registeration data of Nanning High School conveniently with GUI. It was first come out in July, 2021.
 
 ### Dependencies
 * openpyxl
 * pythonping
 * pyqt5
 * pillow
-* matplotlib (future)
+* matplotlib
 
 ### How to Use
-Each time you use the software you need to click on the Initialise button to initialise it, then select whether you want the data for general or vocational education and click on 'Get Current Information' to get the current data from the API available at www.nnzkzs.com. Once the data has been retrieved the program will automatically open the saved zip file, or use the Open option in the menu to open the local zip file, select the school and the data for each school will be displayed in the List control. You can also use the loop function on the right hand side of the UI to get the current data at regular intervals, the files are saved in the saves folder by default.
+* Initialise the software first. (You can choose whether to use offline config file in setting window. Initialising offline is fast but may have less timeliness.)
+* Choose the school type: general schools or vocational schools in radio buttons.
+* Click "Get Current Information" button to get information from API of www.nnzkzs.com and save the information into .zip file.
+* On finishing the getting process, the software will open the zip file automatically.
+* Select school code in the combo box. The school name will be showed in the label leftside. The enroling data will be showed in the list widget.
+* You can choose whether to show single subject situation in the setting window.
+* You can open offline files in the menu.
+* You can use circulation function to get information regularly.
+* You can use "series files" function to see the enroling trends. 
 ![250350479-d346d4c5-9129-49e5-b4d7-c1e0bc568912](https://github.com/Hangba/NNSE-Information/assets/36891442/7830e994-1b22-43b7-8468-9f297a9a114f)
 ![{F1571B47-3781-44d9-AC64-E2BB3F2BA86E}](https://github.com/Hangba/NNSE-Information/assets/36891442/feb72a0a-cc71-47ba-9957-97fa7414b1f6)
 
-### Future Plans
-* Optimising data output
-* Visualising data using matplotlib
-* Adding the data process function for a sequence of datas
 
 # NNSE-Information
-这是一个用于获取、显示中考数据的带UI的工具，最初版在2021年7月发布。
+这是一个用于获取、显示中考报名数据的带UI的工具，最初版在2021年7月发布。
 
 ### 依赖
 * openpyxl
 * pythonping
 * pyqt5
 * pillow
-* matplotlib （未来）
+* matplotlib
 
 ### 如何使用
-每次使用软件时需要点击初始化按钮初始化，然后选择要普高还是职高的数据，点击“Get Current Information”从 www.nnzkzs.com 公开的API获取当前数据。获取完数据后程序会自动打开保存好的zip文件，使用菜单里的Open选项也可以打开本地zip文件，选择学校，各个学校的数据会显示在List控件中。另外可以使用UI右侧的循环功能定时获取当前数据，文件默认保存在saves文件夹。
-
-### Future Plans
-* 优化数据输出
-* 使用matplotlib进行数据可视化
-* 添加对一系列数据的处理功能
+* 先初始化软件。（你可以在设置窗口中选择是否使用脱机配置文件。离线初始化速度快，但时效性可能较差）。
+* 选择学校类型：在单选按钮中选择普高或职高。
+* 点击 "获取当前信息 "按钮，从www.nnzkzs.com 的API中获取信息，并将信息保存为.zip文件。
+* 完成获取过程后，软件将自动打开.zip文件。
+* 在下拉选框中选择学校代码。学校名称将显示在标签的左边。报名数据将显示在列表小部件中。
+* 你可以在设置窗口中选择是否显示单科情况。
+* 你可以在菜单中打开离线文件。
+* 你可以使用循环功能来定期获得信息。
+* 你可以使用 "系列文件 "功能来查看入学趋势。
 
 

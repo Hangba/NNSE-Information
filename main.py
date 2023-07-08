@@ -311,6 +311,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # use for start threading
             self.statusbar.showMessage("Start circulating.")
             self.circulate_threading= QThread()
+            self.getCurrent.setEnabled(False)
 
             if self.isGeneral.isChecked():
                 #general school information
@@ -332,6 +333,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # stop circulating proactively
         if hasattr(self,"circulate_worker"):
             self.circulate_worker.running = False
+            self.getCurrent.setEnabled(True)
         else:
             self.information_box("You haven't started circulating!","Error")
 
@@ -623,7 +625,6 @@ class SeriesWindow(QtWidgets.QDialog):
         self.output.addItems(filenames)
         self.ifload = False
         
-
     def delete_selection(self):
         
         selected = self.output.selectedIndexes()
@@ -666,16 +667,17 @@ class SeriesWindow(QtWidgets.QDialog):
 
                 self.timelist.append(metadata["runTime"])
                 self.schoolList.append(metadata["schoolList"])
-                
-            maxRunTime = time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(max(self.timelist)))
-            minRunTime = time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(min(self.timelist)))
-
+            
             if self.schoolList.count(self.schoolList[0]) != len(self.schoolList):
                 raise RuntimeError
             # test for school list
-            self.schoolList = [str(schoolCode) for schoolCode in self.schoolList[0]]
+            self.schoolList:list[str] = [str(schoolCode) for schoolCode in self.schoolList[0]]
 
+            maxRunTime = time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(max(self.timelist)))
+            minRunTime = time.strftime("%Y-%m-%d, %H:%M:%S",time.localtime(min(self.timelist)))
+            
             self.comboBox.addItems(self.schoolList)
+            self.comboBox.addItem("Total")
 
             self.time1.setText(minRunTime)
             self.time2.setText(maxRunTime)
@@ -689,9 +691,14 @@ class SeriesWindow(QtWidgets.QDialog):
 
     def choose_school(self):
         if bool(self.comboBox.currentText()):
-            self.current_code:int = int(self.comboBox.currentText())
-        self.school_name = self.ctn_list[self.current_code]
-        self.school_name_label.setText(self.school_name)
+            if self.comboBox.currentText() == "Total":
+                self.school_name = "Total Data"
+                self.school_name_label.setText(self.school_name)
+                self.current_code = "Total"
+            else:
+                self.current_code:int = int(self.comboBox.currentText())
+                self.school_name = self.ctn_list[self.current_code]
+                self.school_name_label.setText(self.school_name)
 
     def analyse_data(self):
         if self.ifload:
@@ -722,6 +729,8 @@ class Series_Analyse_Window(QtWidgets.QDialog):
         self.setWindowIcon(self.MainWindow.icon)
 
         self.rank_trend.clicked.connect(self.rank_trend_folding_line)
+        self.sum_trend.clicked.connect(self.sum_folding_line)
+        self.score_trend.clicked.connect(self.estimation_folding_line)
 
     def rank_trend_folding_line(self):
         dialog = QtWidgets.QInputDialog(self.MainWindow)
@@ -762,8 +771,48 @@ class Series_Analyse_Window(QtWidgets.QDialog):
         except RuntimeError:
             self.MainWindow.information_box("The grade is invalid!","Error")
 
-        
+    def sum_folding_line(self):
+            
+        self.seriesWindow.timelist.sort()
+        relative_timelist = [str(round(t - self.seriesWindow.timelist[0],2)) for t in self.seriesWindow.timelist]
+        # get the relative time to show 
+        res_list = []
+        for t in self.seriesWindow.timelist:
+            res:dict = analyse_data(self.seriesWindow.school_data[t],self.MainWindow.gradeOrder)
 
+            res_list.append(res["summary"]["num"])
+        
+        fig, ax = plt.subplots()
+        ax.plot(relative_timelist,res_list)
+        ax.set_title(f"Sum Enrolling Number in {self.seriesWindow.school_name}")
+        ax.set_xlabel("Relative Time")
+        ax.set_ylabel("Student Number")
+        for a, b in zip(relative_timelist, res_list):
+            # show data label
+            ax.text(a,b,str(b))
+        plt.show()
+
+    def estimation_folding_line(self):
+            
+        self.seriesWindow.timelist.sort()
+        relative_timelist = [str(round(t - self.seriesWindow.timelist[0],2)) for t in self.seriesWindow.timelist]
+        # get the relative time to show 
+        res_list = []
+        for t in self.seriesWindow.timelist:
+            res:dict = analyse_data(self.seriesWindow.school_data[t],self.MainWindow.gradeOrder)
+
+            res_list.append(estimate(res["summary"]["CombinedScore"],self.MainWindow.gradeOrder,self.MainWindow.settings["estimation_index"]))
+        
+        fig, ax = plt.subplots()
+        ax.plot(relative_timelist,res_list)
+        ax.set_title(f"Estimation Score in {self.seriesWindow.school_name}")
+        ax.set_xlabel("Relative Time")
+        ax.set_ylabel("Score")
+        for a, b in zip(relative_timelist, res_list):
+            # show data label
+            ax.text(a,b,str(round(b,2)))
+        plt.show()
+            
         
 app = QtWidgets.QApplication(sys.argv)
 window = MainWindow()

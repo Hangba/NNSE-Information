@@ -66,7 +66,6 @@ def APIAvailablity(url,data = None, ifPost = True):
                'Referer': 'http://www.nnzkzs.com/'
                } # define headers
 
-
     try:
         if ifPost:
             res=requests.post(url, data = data, headers = headers)
@@ -123,7 +122,6 @@ def get_single_school_data(schoolCode:int,status:int,ifvocational = False):
                 return None
     return data
 
-
 def pie_chart(data:dict, output_threshold = 0.03):
     # draw a pie chart of the elements whose ratio is bigger than output_threshold 
     # data : {"e1":1,"e2":2}
@@ -159,7 +157,6 @@ def bar_chart(data:dict):
 
     return ax
 
-
 def get_save_single_school_data(schoolCode:int,status:int,filepath = "\\", ifvocational = False):
     # Get the single school data online and save to {schoolCode}.json
     data = get_single_school_data(schoolCode, status,ifvocational)
@@ -184,6 +181,7 @@ def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\
     
     total = {t: [] for t in types} # don't use dictfromkeys otherwise all the keys are hooked to a single memory
     total["schoolName"] = "Total Data"
+    real_school_list = []
     for sc in schoolList:
         if bool(signal):
             # update the progress
@@ -192,7 +190,7 @@ def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\
 
         data = get_save_single_school_data(sc,status,filePath,ifvocational)
         if data != None:
-
+            real_school_list.append(sc)
             for t in list(data.keys()):
                 if t in types:
                     
@@ -205,7 +203,7 @@ def get_sequence_school_data(schoolList:list,status:int,fileName, savePath = "\\
             kind = "vocational"
         else:
             kind = "general"
-        json.dump({"runTime":time.time(),"status":status,"schoolKind":kind,"schoolNumber":len(schoolList),"schoolList":schoolList},f)
+        json.dump({"runTime":time.time(),"status":status,"schoolKind":kind,"schoolNumber":len(real_school_list),"schoolList":real_school_list},f)
     
     with open(f"{filePath}Total.json","w",encoding="utf8") as f:
         # create total file
@@ -350,8 +348,4 @@ def get_code_to_name_dict(function = 0):
     except RuntimeWarning as e:
         return None
 
-    
-
-def open_file():
-    pass
 
