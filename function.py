@@ -8,6 +8,8 @@ import os
 import inspect
 from PyQt5 import QtWidgets
 import matplotlib.pyplot as plt
+from functools import total_ordering
+from dataclasses import dataclass
 
 def information_box(information, title = "Information"):
     box = QtWidgets.QMessageBox()
@@ -240,6 +242,8 @@ def analyse_data(school_data,gradeOrder):
             
             classification[t]["num"] = len(school_data[t])
             # get registeration number 
+            if classification[t]["num"] != 0 :classification[t]["last"] = school_data[t][-1]
+            # get the worst grade
             
             classification[t]["CombinedScore"] = sort_dict_by_list(dict(Counter([l["CombinedScore"] for l in school_data[t]])),gradeOrder)
 
@@ -250,6 +254,7 @@ def analyse_data(school_data,gradeOrder):
         else:
             classification[t]["num"] = 0
             classification[t]["CombinedScore"] = {}
+            classification[t]["last"] = {}
         # get combine score dictionary
 
     
@@ -348,4 +353,40 @@ def get_code_to_name_dict(function = 0):
     except RuntimeWarning as e:
         return None
 
+@total_ordering
+@dataclass
+class Grade:
+    # use to compare the single grade
+    raw: list[int]
 
+    def __eq__(self, other: "Grade") -> bool:
+        return self.raw == other.raw
+    
+    def __gt__(self, other: "Grade") -> bool:
+        slf_gs = [0 for _ in range(10)]
+        for g in self.raw:
+            slf_gs[g] += 1
+        oth_gs= [0 for _ in range(10)]
+        for g in other.raw:
+            oth_gs[g] += 1
+        if slf_gs != oth_gs:
+            return slf_gs > oth_gs
+
+        return self.raw < other.raw
+
+
+def single_data_to_grade(data:dict):
+    # change single grade to grade class 
+    l = data["ChineseLevel"],data["MathLevel"],data["EnglishLevel"],data["PhysicsLevel"],data["ChymistLevel"],data["PoliticsLevel"]
+    order = ["A+","A","B+","B","C+","C","D","E"]
+    l = [order.index(subject) for subject in l]
+    return Grade(l)
+
+def get_all_individual_subject_order(total_data:dict):
+    types = ["instruction","directional","alter","guide","vocational"]
+    data = []
+    for t in types:
+        if t in list(total_data.keys()):
+            data+=total_data[t]
+
+    return data

@@ -50,6 +50,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.schoolDistribution.triggered.connect(self.school_distribution)
         self.estimation_chart.triggered.connect(self.draw_estimation_chart)
         self.series.triggered.connect(self.open_series_window)
+        self.estimate_admission.triggered.connect(self.estimate_admission_school)
+        self.school_rank.triggered.connect(self.open_input_window)
 
         self.schoolCodeSelection.currentIndexChanged.connect(self.choose_school)
         self.getCurrent.clicked.connect(self.get_current_information)
@@ -57,6 +59,29 @@ class MainWindow(QtWidgets.QMainWindow):
         self.loopStart.clicked.connect(self.circulate_thread)
         self.loopStop.clicked.connect(self.stop_circulating)
         
+    def estimate_admission_school(self):
+        pass
+
+    def open_input_window(self):
+        try:
+            if not self.ifopenfile:
+                raise RuntimeWarning
+            
+            self.grade_input_window = GradeInputWindow(self)
+            self.grade_input_window.show()
+            
+        except RuntimeWarning:
+            self.information_box(f"You haven't opened a file!","Error")
+            
+    def get_school_rank(self,single_grade):
+
+            with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
+                
+                data = json.load(file)
+                
+
+    
+
     def draw_estimation_chart(self):
         # draw a bar chart of estimation score
         try:
@@ -614,7 +639,7 @@ class SeriesWindow(QtWidgets.QDialog):
 
     def add_files(self):
         # add files to list and class attributes
-        filepaths, _ = QtWidgets.QFileDialog.getOpenFileNames(self,"Choose Schools", os.getcwd(), "Zip Files(*.zip);;All Files (*.*)")
+        filepaths, _ = QtWidgets.QFileDialog.getOpenFileNames(self,"Choose Files", os.getcwd(), "Zip Files(*.zip);;All Files (*.*)")
         # returns a list of absolute path
         for path in filepaths:
             if path not in self.filepaths:
@@ -812,8 +837,37 @@ class Series_Analyse_Window(QtWidgets.QDialog):
             # show data label
             ax.text(a,b,str(round(b,2)))
         plt.show()
-            
+
+class GradeInputWindow(QtWidgets.QDialog):
+    def __init__(self,MainWindow:MainWindow):
+        super(GradeInputWindow, self).__init__()
+        uic.loadUi("grade_input.ui",self)
+        self.MainWindow = MainWindow
+        self.setWindowIcon(self.MainWindow.icon)
+
+        self.submit.clicked.connect(self.get_rank)
+    
+    def get_rank(self):
+        self.order = ["A+","A","B+","B","C+","C","D","E"]
+
+        single_grade = [self.sum.text(),
+                        self.chinese.text(),
+                        self.maths.text(),
+                        self.english.text(),
+                        self.physics.text(),
+                        self.chemistry.text(),
+                        self.politics.text()]
         
+        try:
+            for grade in single_grade:
+                if grade not in self.order:
+                    raise RuntimeError
+            
+            self.MainWindow.get_school_rank(single_grade)
+
+        except RuntimeError:
+            self.MainWindow.information_box("The grade is not valid! Please input correct grade.", "Error")
+    
 app = QtWidgets.QApplication(sys.argv)
 window = MainWindow()
 app.exec_()
