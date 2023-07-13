@@ -96,6 +96,7 @@ def get_single_school_data(schoolCode:int,status:int,ifvocational = False):
                 if res.status_code == 502:
                     raise BufferError
                 if not bool(res.json()["result"]):
+                    print(f"The data of school code:{schoolCode},types:{t} is empty! (get_single_school_data)")
                     continue
 
                 data["schoolName"] = ctn_dict[int(json.loads(res.json()["result"])["schoolCode"])] # Get school name
@@ -112,8 +113,8 @@ def get_single_school_data(schoolCode:int,status:int,ifvocational = False):
             if res.status_code == 502:
                 raise BufferError
             if not bool(res.json()["result"]):
+                print(f"The data of school code:{schoolCode} is empty!")
                 return None
-            ctn_dict = get_code_to_name_dict()
             if bool(ctn_dict):
                 data["schoolName"] = ctn_dict[schoolCode] # Get school name
             data["vocational"] = json.loads(res.json()["result"])["lists"] # Get registeration data     
@@ -166,6 +167,7 @@ def get_save_single_school_data(schoolCode:int,status:int,filepath = "\\", ifvoc
         with open(f"{filepath}{schoolCode}.json","w", encoding="utf8") as f:
             json.dump(data,f)
     else:
+        print(f"The data of school code:{schoolCode} is empty! (get_save_single_school_data)")
         return None
     return data
 
