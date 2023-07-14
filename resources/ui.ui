@@ -582,7 +582,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
   </action>
   <action name="estimate_school">
    <property name="text">
-    <string>Estimate School Admission</string>
+    <string>Estimate School Admission (Need Network Connection)</string>
    </property>
   </action>
  </widget>
