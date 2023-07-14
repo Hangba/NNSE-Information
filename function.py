@@ -83,7 +83,7 @@ def get_single_school_data(schoolCode:int,status:int,ifvocational = False):
     # Get the single school data online and return it
     # Data structure:{"schoolCode" : schoolCode, "schoolName":schoolName, "instruction" : list...}
     data = dict()
-    types = ["instruction","directional","alter","guide","vocational"]
+    types = ["instruction","directional","alter","guide"]
     ctn_dict = get_code_to_name_dict()
     if not ifvocational:
         #vocational schools api doesn't need types
@@ -377,18 +377,21 @@ class Grade:
         return self.raw < other.raw
 
 
-def single_data_to_grade(data:dict):
+def single_data_to_grade(data:dict) -> Grade:
     # change single grade to grade class 
-    l = data["ChineseLevel"],data["MathLevel"],data["EnglishLevel"],data["PhysicsLevel"],data["ChymistLevel"],data["PoliticsLevel"]
+    l = [data["SumScore"],data["ChineseLevel"],data["MathLevel"],data["EnglishLevel"],data["PhysicsLevel"],data["ChymistLevel"],data["PoliticsLevel"]]
     order = ["A+","A","B+","B","C+","C","D","E"]
     l = [order.index(subject) for subject in l]
     return Grade(l)
 
-def get_all_individual_subject_order(total_data:dict):
+def get_grade_list(total_data:dict) -> list[Grade]:
     types = ["instruction","directional","alter","guide","vocational"]
     data = []
+    transformed_data = []
     for t in types:
         if t in list(total_data.keys()):
             data+=total_data[t]
 
-    return data
+    for d in data:
+        transformed_data.append(single_data_to_grade(d))
+    return transformed_data

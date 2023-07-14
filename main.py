@@ -73,14 +73,24 @@ class MainWindow(QtWidgets.QMainWindow):
         except RuntimeWarning:
             self.information_box(f"You haven't opened a file!","Error")
             
-    def get_school_rank(self,single_grade):
+    def get_school_rank(self,single_grade:Grade):
+        # a window to show the rank in current school
+        if bool(self.schoolCodeSelection.currentText()):
 
             with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
                 
                 data = json.load(file)
+                formated_data = get_grade_list(data)
+                formated_data.sort(reverse=True)
+                try:
+                    rank = formated_data.index(single_grade)+1
+                    information_box(f"Your ranking in {data['schoolName']} is {rank}/{len(formated_data)}")
+                except IndexError or ValueError:
+                    information_box("This grade doesn't exist!","Error")
+        
+        else:
+            information_box("You haven't selected a school!")
                 
-
-    
 
     def draw_estimation_chart(self):
         # draw a bar chart of estimation score
@@ -222,7 +232,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def select_file(self):
         if self.ifinitialise:
-            filePath, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose File", os.getcwd(), "Zip Files(*.zip);;All Files (*.*)")
+            filePath, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose a File", os.getcwd(), "Zip Files(*.zip);;All Files (*.*)")
             if bool(filePath):
                 self.open_offline_file(filePath)
         else:
@@ -245,6 +255,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.schoolCodeSelection.clear()
                 self.schoolCodeSelection.addItems(self.realschoolList)
                 self.ifopenfile = True
+            
+            with self.current_file.open("Total.json") as file:
+                origin_data = json.load(file)
+                formated_data = get_grade_list(origin_data)
+                formated_data.sort(reverse=True)
+                self.subject_order = formated_data
 
             self.filePathLabel.setText(filePath)
             self.number.setText(str(len(self.realschoolList)-1))
@@ -845,25 +861,36 @@ class GradeInputWindow(QtWidgets.QDialog):
         self.MainWindow = MainWindow
         self.setWindowIcon(self.MainWindow.icon)
 
+        self.order = ["A+","A","B+","B","C+","C","D","E"]
         self.submit.clicked.connect(self.get_rank)
+        self.sum.addItems(self.order)
+        self.chinese.addItems(self.order)
+        self.maths.addItems(self.order)
+        self.english.addItems(self.order)
+        self.physics.addItems(self.order)
+        self.chemistry.addItems(self.order)
+        self.politics.addItems(self.order)
     
     def get_rank(self):
-        self.order = ["A+","A","B+","B","C+","C","D","E"]
-
-        single_grade = [self.sum.text(),
-                        self.chinese.text(),
-                        self.maths.text(),
-                        self.english.text(),
-                        self.physics.text(),
-                        self.chemistry.text(),
-                        self.politics.text()]
         
+        single_item = ["SumScore","ChineseLevel","MathLevel","EnglishLevel","PhysicsLevel","ChymistLevel","PoliticsLevel"]
+        single_grade = {}
+        grades = [self.sum.currentText(),
+                        self.chinese.currentText(),
+                        self.maths.currentText(),
+                        self.english.currentText(),
+                        self.physics.currentText(),
+                        self.chemistry.currentText(),
+                        self.politics.currentText()]
+        
+        for i in range(len(single_item)): single_grade[single_item[i]] = grades[i]
+        # save given grades into dict
         try:
-            for grade in single_grade:
+            for grade in list(single_grade.values()):
                 if grade not in self.order:
                     raise RuntimeError
             
-            self.MainWindow.get_school_rank(single_grade)
+            self.MainWindow.get_school_rank(single_data_to_grade(single_grade))
 
         except RuntimeError:
             self.MainWindow.information_box("The grade is not valid! Please input correct grade.", "Error")
