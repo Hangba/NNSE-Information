@@ -1,6 +1,5 @@
-from PyQt5 import QtCore, QtGui, uic, QtWidgets
-from PyQt5.QtCore import QObject,pyqtSignal,QThread
-from PyQt5.QtCore import Qt
+from PyQt5 import QtGui, uic, QtWidgets
+from PyQt5.QtCore import QObject,pyqtSignal,QThread,Qt
 from function import *
 import sys
 import zipfile
@@ -13,10 +12,10 @@ class MainWindow(QtWidgets.QMainWindow):
     #A Class for MainWindow
     def __init__(self):
         super(MainWindow, self).__init__()
-        uic.loadUi("ui.ui",self)
-        self.icon = QtGui.QIcon("ico.ico")
+        uic.loadUi("resources\\ui.ui",self)
+        self.icon = QtGui.QIcon("resources\\ico.ico")
         self.setWindowIcon(self.icon)
-
+        
         #load settings
         self.setting_window = SettingWindow(self)
         self.series_window = SeriesWindow(self)
@@ -50,8 +49,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.schoolDistribution.triggered.connect(self.school_distribution)
         self.estimation_chart.triggered.connect(self.draw_estimation_chart)
         self.series.triggered.connect(self.open_series_window)
-        self.estimate_admission.triggered.connect(self.estimate_admission_school)
         self.school_rank.triggered.connect(self.open_input_window)
+        self.estimate_school.triggered.connect(self.estimate_admission_school)
 
         self.schoolCodeSelection.currentIndexChanged.connect(self.choose_school)
         self.getCurrent.clicked.connect(self.get_current_information)
@@ -60,7 +59,62 @@ class MainWindow(QtWidgets.QMainWindow):
         self.loopStop.clicked.connect(self.stop_circulating)
         
     def estimate_admission_school(self):
-        pass
+        try:
+            if not self.ifopenfile:
+                raise RuntimeWarning
+            
+            self.enrol_plan = get_enrol_plan()
+            self.ctn_list = get_code_to_name_dict()
+            information_box("School recommendations are for reference only, and the author is not responsible if blind use of the software results in failed enrolment.\n学校推荐仅供参考，若盲目使用该软件导致报名失败，作者不负任何责任。")
+            self.school_estimate_window = SchoolEstimateWindow(self)
+            uic.loadUi("resources\\school_estimate.ui",self.school_estimate_window)
+            self.school_estimate_window.init_ui()
+            self.school_estimate_window.show()
+            self.school_estimate_window.submit.clicked.connect(self.estimate_all_school)
+            
+        except RuntimeWarning:
+            self.information_box(f"You haven't opened a file!","Error")
+
+    def estimate_single_school(self,grade:Grade,schoolCode:int,type:str):
+        try:
+            with self.current_file.open(f"{schoolCode}.json") as f:
+                data = json.load(f)
+                if type not in list(data.keys()):
+                    raise RuntimeWarning
+                else:
+                    grade_list = get_type_grade_list(data[type])
+                    return get_rank(grade_list,grade)
+        except RuntimeWarning:
+            # the type doesn't exist
+            return -1
+
+    def estimate_all_school(self):
+        school_categorise = {"impossible":[],"risky":[],"mediocre":[],"safe":[]}
+        selected_type = self.school_estimate_window.get_option()
+        l = self.realschoolList.copy()
+        l.remove("Total")
+        for schoolCode in l:
+            rank = self.estimate_single_school(self.school_estimate_window.current_grade(),schoolCode,selected_type)
+            if rank > 0:
+                number = self.enrol_plan[int(schoolCode)][type_to_plan_name(selected_type)]
+                print(rank,number)
+                if not number == 0:
+                    rank_rate = rank/number
+                else:
+                    rank_rate = 1
+                schoolCode = int(schoolCode)
+                if rank_rate>=0.99:
+                    school_categorise["impossible"].append(self.ctn_list[schoolCode])
+                elif 0.9<=rank_rate<0.99:
+                    school_categorise["risky"].append(self.ctn_list[schoolCode])
+                elif 0.7<=rank_rate<0.9:
+                    school_categorise["mediocre"].append(self.ctn_list[schoolCode])
+                else:
+                    school_categorise["safe"].append(self.ctn_list[schoolCode])
+
+        wrap = "\n"
+        print(school_categorise)
+        information_box(f"Risky schools:\n{wrap.join(school_categorise['risky'])}\nMediocre schools:{wrap.join(school_categorise['mediocre'])}")
 
     def open_input_window(self):
         try:
@@ -68,6 +122,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 raise RuntimeWarning
             
             self.grade_input_window = GradeInputWindow(self)
+            uic.loadUi("resources\\grade_input.ui",self.grade_input_window)
+            self.grade_input_window.submit.clicked.connect(self.grade_input_window.get_rank)
+            self.grade_input_window.init_ui()
             self.grade_input_window.show()
             
         except RuntimeWarning:
@@ -80,17 +137,13 @@ class MainWindow(QtWidgets.QMainWindow):
             with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
                 
                 data = json.load(file)
-                formated_data = get_grade_list(data)
-                formated_data.sort(reverse=True)
-                try:
-                    rank = formated_data.index(single_grade)+1
-                    information_box(f"Your ranking in {data['schoolName']} is {rank}/{len(formated_data)}")
-                except IndexError or ValueError:
-                    information_box("This grade doesn't exist!","Error")
-        
+                sorted_data = get_total_grade_list(data)
+                sorted_data.sort(reverse=True)
+                rank = get_rank(sorted_data, single_grade)
+                information_box(f"Your ranking in {data['schoolName']} is {rank}/{len(sorted_data)}")  
+                        
         else:
-            information_box("You haven't selected a school!")
-                
+            information_box("You haven't selected a school!")            
 
     def draw_estimation_chart(self):
         # draw a bar chart of estimation score
@@ -255,12 +308,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.schoolCodeSelection.clear()
                 self.schoolCodeSelection.addItems(self.realschoolList)
                 self.ifopenfile = True
-            
-            with self.current_file.open("Total.json") as file:
-                origin_data = json.load(file)
-                formated_data = get_grade_list(origin_data)
-                formated_data.sort(reverse=True)
-                self.subject_order = formated_data
 
             self.filePathLabel.setText(filePath)
             self.number.setText(str(len(self.realschoolList)-1))
@@ -488,9 +535,9 @@ class SettingWindow(QtWidgets.QDialog):
     #A Class for setting window
     def __init__(self,MainWindow:MainWindow):
         super(SettingWindow, self).__init__()
-        uic.loadUi("settings.ui",self)
+        uic.loadUi("resources\\settings.ui",self)
         self.MainWindow = MainWindow
-        self.icon = QtGui.QIcon("ico.ico")
+        self.icon = QtGui.QIcon("resources\\ico.ico")
         self.setWindowIcon(self.icon)
         self.apply.clicked.connect(self.save_setting)
         self.cancel.clicked.connect(self.close)
@@ -635,7 +682,7 @@ class SeriesWindow(QtWidgets.QDialog):
 
     def __init__(self,MainWindow:MainWindow):
         super(SeriesWindow, self).__init__()
-        uic.loadUi("series.ui",self)
+        uic.loadUi("resources\\series.ui",self)
         self.MainWindow = MainWindow
         self.filepaths = []
         self.icon = MainWindow.icon
@@ -764,7 +811,7 @@ class Series_Analyse_Window(QtWidgets.QDialog):
 
     def __init__(self,MainWindow:MainWindow,SeriesWindow:SeriesWindow):
         super(Series_Analyse_Window, self).__init__()
-        uic.loadUi("series_analysis.ui",self)
+        uic.loadUi("resources\\series_analysis.ui",self)
         self.MainWindow = MainWindow
         self.seriesWindow = SeriesWindow
         self.setWindowIcon(self.MainWindow.icon)
@@ -857,12 +904,13 @@ class Series_Analyse_Window(QtWidgets.QDialog):
 class GradeInputWindow(QtWidgets.QDialog):
     def __init__(self,MainWindow:MainWindow):
         super(GradeInputWindow, self).__init__()
-        uic.loadUi("grade_input.ui",self)
         self.MainWindow = MainWindow
         self.setWindowIcon(self.MainWindow.icon)
 
+    def init_ui(self):
         self.order = ["A+","A","B+","B","C+","C","D","E"]
-        self.submit.clicked.connect(self.get_rank)
+        self.single_item = ["SumScore","ChineseLevel","MathLevel","EnglishLevel","PhysicsLevel","ChymistLevel","PoliticsLevel"]
+        
         self.sum.addItems(self.order)
         self.chinese.addItems(self.order)
         self.maths.addItems(self.order)
@@ -870,30 +918,69 @@ class GradeInputWindow(QtWidgets.QDialog):
         self.physics.addItems(self.order)
         self.chemistry.addItems(self.order)
         self.politics.addItems(self.order)
+
+        self.sum.currentIndexChanged.connect(self.refresh_combined_score)
+        self.chinese.currentIndexChanged.connect(self.refresh_combined_score)
+        self.maths.currentIndexChanged.connect(self.refresh_combined_score)
+        self.english.currentIndexChanged.connect(self.refresh_combined_score)
+        self.physics.currentIndexChanged.connect(self.refresh_combined_score)
+        self.chemistry.currentIndexChanged.connect(self.refresh_combined_score)
+        self.politics.currentIndexChanged.connect(self.refresh_combined_score)
     
     def get_rank(self):
         
-        single_item = ["SumScore","ChineseLevel","MathLevel","EnglishLevel","PhysicsLevel","ChymistLevel","PoliticsLevel"]
-        single_grade = {}
-        grades = [self.sum.currentText(),
-                        self.chinese.currentText(),
-                        self.maths.currentText(),
-                        self.english.currentText(),
-                        self.physics.currentText(),
-                        self.chemistry.currentText(),
-                        self.politics.currentText()]
-        
-        for i in range(len(single_item)): single_grade[single_item[i]] = grades[i]
-        # save given grades into dict
+        single_grade = self.current_grade()
+        self.MainWindow.get_school_rank(single_grade)
+
+    def refresh_combined_score(self):
+        self.combinedscore_display.setText("Combined Score: " + get_combined_score(self.current_grade()))
+
+    
+    def current_grade(self) -> Grade:
+        #return current grade as class Grade
         try:
+            single_grade = {}
+
+            grades = [self.sum.currentText(),
+                            self.chinese.currentText(),
+                            self.maths.currentText(),
+                            self.english.currentText(),
+                            self.physics.currentText(),
+                            self.chemistry.currentText(),
+                            self.politics.currentText()]
+            
+            for i in range(len(self.single_item)): single_grade[self.single_item[i]] = grades[i]
+
             for grade in list(single_grade.values()):
                 if grade not in self.order:
                     raise RuntimeError
-            
-            self.MainWindow.get_school_rank(single_data_to_grade(single_grade))
+                
+            return single_data_to_grade(single_grade)
 
         except RuntimeError:
             self.MainWindow.information_box("The grade is not valid! Please input correct grade.", "Error")
+
+class SchoolEstimateWindow(GradeInputWindow):
+
+    def __init__(self, MainWindow: MainWindow):
+        super(SchoolEstimateWindow,self).__init__(MainWindow)
+        
+        self.MainWindow = MainWindow
+        self.setWindowIcon(self.MainWindow.icon)
+
+    def get_option(self):
+        r = ""
+        if self.radioButton.isChecked():
+            r = "instruction"
+        elif self.radioButton_2.isChecked():
+            r = "directional"
+        elif self.radioButton_3.isChecked():
+            r = "alter"
+        elif self.radioButton_4.isChecked():
+            r = "guide"
+        elif self.radioButton_5.isChecked():
+            r = "vocational"
+        return r
     
 app = QtWidgets.QApplication(sys.argv)
 window = MainWindow()

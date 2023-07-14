@@ -285,7 +285,7 @@ def initialise(ifonline = True):
     # get 2 school code online or offline, depends on the api's availablity
     general_api = "http://www.nnzkzs.com/api/services/app/generalProgress/GetProgress"
     vocational_api = "http://www.nnzkzs.com/api/services/app/vocationalProgress/GetProgress"
-    filePath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0))) + "\\Out-of-date Information\\schoolCode.json"
+    filePath = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0))) + "\\resources\\schoolCode.json"
     with open(filePath, "r",encoding="utf8") as file:
         #get school code list online if api is available
         if ifonline:
@@ -304,7 +304,7 @@ def initialise(ifonline = True):
             general_list = code_dict["general"]
             vocational_list = code_dict["vocational"]
     
-    filePath_order = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0))) + "\\gradeOrder.json"
+    filePath_order = os.path.dirname(os.path.abspath (inspect.getsourcefile(lambda:0))) + "\\resources\\gradeOrder.json"
     with open(filePath_order, "r",encoding="utf8") as file:
         grade_order = json.load(file)
         #get the grade order for sorting
@@ -365,16 +365,19 @@ class Grade:
         return self.raw == other.raw
     
     def __gt__(self, other: "Grade") -> bool:
-        slf_gs = [0 for _ in range(10)]
-        for g in self.raw:
-            slf_gs[g] += 1
-        oth_gs= [0 for _ in range(10)]
-        for g in other.raw:
-            oth_gs[g] += 1
-        if slf_gs != oth_gs:
-            return slf_gs > oth_gs
+        if self.raw[0] == other.raw[0]:
+            slf_gs = [0 for _ in range(10)]
+            for g in self.raw:
+                slf_gs[g] += 1
+            oth_gs= [0 for _ in range(10)]
+            for g in other.raw:
+                oth_gs[g] += 1
+            if slf_gs != oth_gs:
+                return slf_gs > oth_gs
 
-        return self.raw < other.raw
+            return self.raw < other.raw
+        else:
+            return self.raw[0] < other.raw[0]
 
 
 def single_data_to_grade(data:dict) -> Grade:
@@ -384,7 +387,7 @@ def single_data_to_grade(data:dict) -> Grade:
     l = [order.index(subject) for subject in l]
     return Grade(l)
 
-def get_grade_list(total_data:dict) -> list[Grade]:
+def get_total_grade_list(total_data:dict) -> list[Grade]:
     types = ["instruction","directional","alter","guide","vocational"]
     data = []
     transformed_data = []
@@ -395,3 +398,83 @@ def get_grade_list(total_data:dict) -> list[Grade]:
     for d in data:
         transformed_data.append(single_data_to_grade(d))
     return transformed_data
+
+def get_type_grade_list(data:list) -> list[Grade]:
+    # get the grade list of a given 
+    transformed_data = []
+
+    for d in data:
+        transformed_data.append(single_data_to_grade(d))
+    return transformed_data
+
+def get_rank(sorted_data:list[Grade], single_grade:Grade):
+    # get the rank number
+    if single_grade in sorted_data:
+        rank = sorted_data.index(single_grade)+1
+        
+    else:
+        for grade_index in range(len(sorted_data)):
+            if grade_index == len(sorted_data)-1:
+                rank = len(sorted_data)
+                break
+            elif sorted_data[grade_index] > single_grade > sorted_data[grade_index+1]:
+                rank = grade_index + 2
+                break
+            elif single_grade > sorted_data[grade_index]:
+                rank = 1
+                break
+
+    return rank
+
+def get_combined_score(score:Grade):
+    order = ["A+","A","B+","B","C+","C","D","E"]
+    return_str = f"({order[score.raw[0]]})"
+    dictionary = dict(Counter(score.raw[1:]))
+    # return without sum score
+    return_dict = {}
+    # sort by dict values
+    for key in sorted(list(dictionary.keys())):
+        return_dict[key] = dictionary[key]
+
+    for d in return_dict:
+        return_str += f"{return_dict[d]}{order[d]}"
+    return return_str
+
+def get_enrol_plan(ifGeneral:bool = True) -> dict:
+    def strict_int(str):
+        if str!="":
+            return int(str)
+        else:
+            return 0
+    return_dict = {}
+    plan_types = ["InstPlan","DirPlan","AlterPlan","GuidePlan"]
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.157',
+               'X-XSRF-TOKEN': 'c3zy7c3jZL5Jd4v2o33R6-eK7ydTMApwODARCPHHjMchJDmjjvUECZJmmz70NS-lpuRbK2Ya1aHi7ScW-GysCTooH9o1',
+               'Accept': 'application/json, text/plain, */*',
+               'Accept-Encoding': 'gzip, deflate',
+               'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+               'Host': 'www.nnzkzs.com',
+               'Referer': 'http://www.nnzkzs.com/'
+               } # define headers
+    if ifGeneral:
+        url = "http://www.nnzkzs.com/api/services/app/generalPublicity/GetPublicity"
+        res = requests.get(url,headers=headers).json()
+        plans = json.loads(res["result"])["bmgs_main"]
+        for plan in plans:
+            return_dict[int(plan["SchoolCode"])] = {}
+            for t in plan_types:
+                return_dict[int(plan["SchoolCode"])][t] = strict_int(plan[t])
+    else:
+        url = "http://www.nnzkzs.com/api/services/app/vocationalPublicity/GetPublicity"
+        res = requests.post(url,headers=headers).json()
+        plan = json.loads(res["result"])["bmgs_main"]
+        for plan in plans:
+            return_dict[int(plan["SchoolCode"])]["countNum"] = strict_int(plan["countNum"])
+
+    return return_dict
+
+def type_to_plan_name(type_name:str):
+    types = ["instruction","directional","alter","guide"]
+    plan_types = ["InstPlan","DirPlan","AlterPlan","GuidePlan"]
+
+    return plan_types[types.index(type_name)]
