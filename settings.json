@@ -1,1 +1,1 @@
-{"init_online": 2, "distribution_grade_threshold": 0.01, "distribution_school_threshold": 0.02, "estimation_index": 1.0, "detailed_subject": [2, 0, 0, 0, 0, 0, 0]}
+{"init_online": 2, "distribution_grade_threshold": 0.01, "distribution_school_threshold": 0.0, "estimation_index": 1.0, "detailed_subject": [2, 2, 2, 2, 2, 2, 2],"matplotlib_text_threshold":20,"series_skip_threshold":0.9}

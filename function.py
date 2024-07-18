@@ -85,6 +85,15 @@ def get_single_school_data(schoolCode:int,status:int,ifvocational = False):
     data = dict()
     types = ["instruction","directional","alter","guide"]
     ctn_dict = get_code_to_name_dict()
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.157',
+               'X-XSRF-TOKEN': 'c3zy7c3jZL5Jd4v2o33R6-eK7ydTMApwODARCPHHjMchJDmjjvUECZJmmz70NS-lpuRbK2Ya1aHi7ScW-GysCTooH9o1',
+               'Accept': 'application/json, text/plain, */*',
+               'Accept-Encoding': 'gzip, deflate',
+               'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+               'Host': 'www.nnzkzs.com',
+               'Referer': 'http://www.nnzkzs.com/'
+               } # define headers
+    
     if not ifvocational:
         #vocational schools api doesn't need types
         for t in types:
@@ -92,7 +101,7 @@ def get_single_school_data(schoolCode:int,status:int,ifvocational = False):
             url=f"http://www.nnzkzs.com/api/services/app/publicityDetail/GetGeneralDetail?schoolCode={schoolCode}&type={t}&status={status}"
             try:
 
-                res=requests.post(url,data=d)
+                res=requests.post(url,data=d,headers=headers)
                 if res.status_code == 502:
                     raise BufferError
                 if not bool(res.json()["result"]):
@@ -106,6 +115,9 @@ def get_single_school_data(schoolCode:int,status:int,ifvocational = False):
             except BufferError as e:
                 print("get single school data error:",str(e))
                 return None
+            except requests.exceptions.JSONDecodeError:
+                print(f"Getting data of school code:{schoolCode},types:{t} failed! (get_single_school_data)")
+                continue
     else:
         url=f"http://www.nnzkzs.com/api/services/app/publicityDetail/GetVocationalDetail?schoolCode={schoolCode}"
         try:
@@ -125,7 +137,7 @@ def get_single_school_data(schoolCode:int,status:int,ifvocational = False):
                 return None
     return data
 
-def pie_chart(data:dict, output_threshold = 0.03):
+def pie_chart(data:dict, output_threshold = 0.03,text_threshold = 20):
     # draw a pie chart of the elements whose ratio is bigger than output_threshold 
     # data : {"e1":1,"e2":2}
     fig, ax = plt.subplots()
@@ -142,8 +154,10 @@ def pie_chart(data:dict, output_threshold = 0.03):
     grade = list(show_dict.keys())
     number = list(show_dict.values())
     ignored_students = summary - sum(number)
-
-    ax.pie(number, labels = grade, autopct='%1.2f%%')
+    if len(data)<= text_threshold:
+        ax.pie(number, labels = grade, autopct='%1.2f%%')
+    else:
+        ax.pie(number, labels = grade)
     return ax,ignored_schools,ignored_students
 
 def bar_chart(data:dict):

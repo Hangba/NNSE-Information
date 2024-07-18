@@ -6,6 +6,7 @@ import zipfile
 import matplotlib.pyplot as plt
 import matplotlib
 import matplotlib.pylab
+import numpy as np
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -205,7 +206,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         distribution[res["schoolName"]] = res["summary"]["CombinedScore"][target_grade]
                         number+=res["summary"]["CombinedScore"][target_grade]
             distribution = {f"{k} ({v}/{number})" : v for k,v in distribution.items()}
-            self.grade_distribution_chart,ig_school,ig_stu = pie_chart(distribution,self.settings["distribution_school_threshold"])
+            self.grade_distribution_chart,ig_school,ig_stu = pie_chart(distribution,self.settings["distribution_school_threshold"],self.settings["matplotlib_text_threshold"])
             self.grade_distribution_chart.set_title(f"School Distribution of {target_grade}\n({ig_school} school(s) is(are) omitted. {ig_stu} student(s) is(are) omitted.)")
             plt.show()
                 
@@ -225,7 +226,7 @@ class MainWindow(QtWidgets.QMainWindow):
             try:
                 with self.current_file.open(f"{self.schoolCodeSelection.currentText()}.json") as file:
                     res:dict = analyse_data(json.load(file),self.gradeOrder)
-                    self.school_distribution_chart,ig_grade,ig_stu= pie_chart(res["summary"]["CombinedScore"],self.settings["distribution_grade_threshold"])
+                    self.school_distribution_chart,ig_grade,ig_stu= pie_chart(res["summary"]["CombinedScore"],self.settings["distribution_grade_threshold"],self.settings["matplotlib_text_threshold"])
                     self.school_distribution_chart.set_title(
                         f"Grade Distrubution of {res['schoolName']}\n({ig_grade} grade(s) is(are) omitted. {ig_stu} student(s) is(are) omitted.)")
                     plt.show()
@@ -363,7 +364,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusbar.showMessage("Sending POST method to API.")
         self.status = self.StatusNum.toPlainText() # refresh status number
         self.thread2 = QThread()
-        self.worker2 = Test_Worker(post,2002,self.status,title = "API Availablity")
+        self.worker2 = Test_Worker(post,2002,self.status,title = "API Availablity Check")
         # Move the worker to the thread
         self.worker2.moveToThread(self.thread2)
         # Connect signals and slots
@@ -756,8 +757,8 @@ class SeriesWindow(QtWidgets.QDialog):
                 self.timelist.append(metadata["runTime"])
                 self.schoolList.append(metadata["schoolList"])
             
-            if self.schoolList.count(self.schoolList[0]) != len(self.schoolList):
-                raise RuntimeError
+            """if self.schoolList.count(self.schoolList[0]) != len(self.schoolList):
+                raise RuntimeError"""
             # test for school list
             self.schoolList:list[str] = [str(schoolCode) for schoolCode in self.schoolList[0]]
 
@@ -793,19 +794,40 @@ class SeriesWindow(QtWidgets.QDialog):
             self.time_to_path_dict = {}
             self.school_data = {}
             self.timelist = []
+            failed_list = []
+            skip_list = []
 
             for filepath in self.filepaths:
                 zfile = zipfile.ZipFile(filepath)
                 runtime = json.load(zfile.open("metadata.json"))["runTime"]
-                file = zfile.open(f"{self.current_code}.json")
+                schoolNumber = json.load(zfile.open("metadata.json"))["schoolNumber"]
+                #只支持普高
+                if schoolNumber / len(self.MainWindow.schoolCodeList[0]) <= self.MainWindow.settings["series_skip_threshold"]:
+                    skip_list.append(filepath)
+                    continue
 
-                self.school_data[runtime] = json.load(file)
-                self.time_to_path_dict[runtime] = filepath
-                self.timelist.append(runtime)
-                file.close()
 
+
+                try:
+                    file = zfile.open(f"{self.current_code}.json")
+                    self.school_data[runtime] = json.load(file)
+                    self.time_to_path_dict[runtime] = filepath
+                    self.timelist.append(runtime)
+                    file.close()
+
+                except KeyError:
+                    # 当前压缩文件无此学校信息
+                    failed_list.append(filepath)
+                    
+
+            if len(failed_list) != 0:
+                info_msg1 = "\n".join(failed_list)
+                info_msg2 = "\n".join(skip_list)
+                self.MainWindow.information_box(f"{self.current_code}.json doesn't exist in following files:\n{info_msg1}\nFollowing files are skipped due to data loss:\n{info_msg2}")
             self.seriesAnalyseWindow = Series_Analyse_Window(self.MainWindow,self)
             self.seriesAnalyseWindow.show()
+
+
 
 class Series_Analyse_Window(QtWidgets.QDialog):
 
@@ -816,41 +838,52 @@ class Series_Analyse_Window(QtWidgets.QDialog):
         self.seriesWindow = SeriesWindow
         self.setWindowIcon(self.MainWindow.icon)
 
-        self.rank_trend.clicked.connect(self.rank_trend_folding_line)
+        self.rank_trend.clicked.connect(self.open_grade_select)
         self.sum_trend.clicked.connect(self.sum_folding_line)
         self.score_trend.clicked.connect(self.estimation_folding_line)
 
-    def rank_trend_folding_line(self):
-        dialog = QtWidgets.QInputDialog(self.MainWindow)
-        dialog.setFont(self.MainWindow.default_font)
-        dialog.setWindowIcon(self.MainWindow.icon)
+    def open_grade_select(self):
+        global grade_select_window
+        grade_select_window = Grade_Select(self.MainWindow,self.seriesWindow,self)
+        grade_select_window.setWindowIcon(self.MainWindow.icon)
+        grade_select_window.show()
+
+    def rank_trend_folding_line(self,line_list):
 
         try:
-            target_grade, ifsuccess = dialog.getText(self.MainWindow,"Input Grade","Please input a valid grade.")
-            if not ifsuccess:
-                raise NotImplementedError
-            
-            if target_grade not in self.MainWindow.gradeOrder:
-                raise RuntimeError
-            
-            self.seriesWindow.timelist.sort()
-            relative_timelist = [str(round(t - self.seriesWindow.timelist[0],2)) for t in self.seriesWindow.timelist]
-            # get the relative time to show 
-            res_list = []
-            for t in self.seriesWindow.timelist:
-                res:dict = analyse_data(self.seriesWindow.school_data[t],self.MainWindow.gradeOrder)
-                if target_grade not in list(res["summary"]["CombinedScore"].keys()):
-                    res["summary"]["CombinedScore"][target_grade] = 0
-                else: res_list.append(res["summary"]["CombinedScore"][target_grade])
-            
             fig, ax = plt.subplots()
-            ax.plot(relative_timelist,res_list)
-            ax.set_title(f"{target_grade} Students Distributed in {self.seriesWindow.school_name}")
+            for target_grade in line_list:
+
+                if target_grade not in self.MainWindow.gradeOrder:
+                    raise RuntimeError
+            
+                self.seriesWindow.timelist.sort()
+                relative_timelist = [round(t - self.seriesWindow.timelist[0],2) for t in self.seriesWindow.timelist]
+                # get the relative time to show 
+                res_list = []
+                for t in self.seriesWindow.timelist:
+                    res:dict = analyse_data(self.seriesWindow.school_data[t],self.MainWindow.gradeOrder)
+                    if target_grade not in list(res["summary"]["CombinedScore"].keys()):
+                        res["summary"]["CombinedScore"][target_grade] = 0
+                        res_list.append(res["summary"]["CombinedScore"][target_grade])
+                    else: res_list.append(res["summary"]["CombinedScore"][target_grade])
+
+                for a, b in zip(relative_timelist, res_list):
+                    # show data label
+                    if len(relative_timelist) <= self.MainWindow.settings["matplotlib_text_threshold"]:
+                        ax.text(a,b,str(b))
+
+                ax.plot(relative_timelist,res_list)
+
+                plt.legend(line_list)
+            
+            
+            
+            ax.set_title(",".join(line_list) + f" Students Distributed in {self.seriesWindow.school_name}")
             ax.set_xlabel("Relative Time")
             ax.set_ylabel("Student Number")
-            for a, b in zip(relative_timelist, res_list):
-                # show data label
-                ax.text(a,b,str(b))
+            plt.ylim(bottom = 0)
+            
             plt.show()
             
         except NotImplementedError:
@@ -859,10 +892,14 @@ class Series_Analyse_Window(QtWidgets.QDialog):
         except RuntimeError:
             self.MainWindow.information_box("The grade is invalid!","Error")
 
+        except ValueError:
+            self.MainWindow.information_box("The grade hasn't existed in current school ever.","Error")
+
     def sum_folding_line(self):
             
         self.seriesWindow.timelist.sort()
-        relative_timelist = [str(round(t - self.seriesWindow.timelist[0],2)) for t in self.seriesWindow.timelist]
+        relative_timelist = [round(t - self.seriesWindow.timelist[0],2) for t in self.seriesWindow.timelist]
+        delta_t = max(self.seriesWindow.timelist)-min(self.seriesWindow.timelist)
         # get the relative time to show 
         res_list = []
         for t in self.seriesWindow.timelist:
@@ -877,13 +914,18 @@ class Series_Analyse_Window(QtWidgets.QDialog):
         ax.set_ylabel("Student Number")
         for a, b in zip(relative_timelist, res_list):
             # show data label
-            ax.text(a,b,str(b))
+            if len(relative_timelist) <= self.MainWindow.settings["matplotlib_text_threshold"]:
+                ax.text(a,b,str(b))
+
+        #plt.xticks(np.arange(1, max(self.seriesWindow.timelist)-min(self.seriesWindow.timelist)))
+        #ax.xaxis.set_major_locator(plt.MultipleLocator(20)) ##TODO fix
+
         plt.show()
 
     def estimation_folding_line(self):
             
         self.seriesWindow.timelist.sort()
-        relative_timelist = [str(round(t - self.seriesWindow.timelist[0],2)) for t in self.seriesWindow.timelist]
+        relative_timelist = [round(t - self.seriesWindow.timelist[0]) for t in self.seriesWindow.timelist]
         # get the relative time to show 
         res_list = []
         for t in self.seriesWindow.timelist:
@@ -898,8 +940,49 @@ class Series_Analyse_Window(QtWidgets.QDialog):
         ax.set_ylabel("Score")
         for a, b in zip(relative_timelist, res_list):
             # show data label
-            ax.text(a,b,str(round(b,2)))
+            if len(relative_timelist) <= self.MainWindow.settings["matplotlib_text_threshold"]:
+                ax.text(a,b,str(round(b,2)))
         plt.show()
+
+class Grade_Select(QtWidgets.QDialog):
+    #选择用来进行比较的等级
+    def __init__(self,MainWindow:MainWindow,SeriesWindow:SeriesWindow,AnalyseWindow:Series_Analyse_Window):
+        super(Grade_Select, self).__init__()
+        uic.loadUi("resources\\grade_select.ui",self)
+        self.MainWindow = MainWindow
+        self.seriesWindow = SeriesWindow
+        self.analyseWindow = AnalyseWindow
+        self.setWindowIcon(self.MainWindow.icon)
+
+        self.add_2.clicked.connect(self.add)
+        self.delete_2.clicked.connect(self.delete)
+        self.clear_2.clicked.connect(self.clear)
+        self.confirm_button.clicked.connect(self.confirm)
+        self.cancel_button.clicked.connect(self.cancel)
+
+        self.show()
+
+
+    def add(self):
+        content = [self.output.item(i).text() for i in range(self.output.count())]
+        if self.comboBox.currentText() not in content:
+            self.output.addItem(self.comboBox.currentText())
+    def delete(self):
+        try:
+            self.output.takeItem(self.output.currentItem())
+        except:
+            pass
+
+    def clear(self):
+        self.output.clear()
+
+    def confirm(self):
+        content = [self.output.item(i).text() for i in range(self.output.count())]
+        self.analyseWindow.rank_trend_folding_line(content)
+        
+    def cancel(self):
+        self.close()
+
 
 class GradeInputWindow(QtWidgets.QDialog):
     def __init__(self,MainWindow:MainWindow):

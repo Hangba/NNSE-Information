@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>401</width>
-    <height>495</height>
+    <height>539</height>
    </rect>
   </property>
   <property name="font">
@@ -45,7 +45,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>450</y>
+     <y>490</y>
      <width>381</width>
      <height>41</height>
     </rect>
@@ -60,24 +60,10 @@
      <x>10</x>
      <y>50</y>
      <width>381</width>
-     <height>201</height>
+     <height>262</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout">
-    <item row="1" column="1">
-     <widget class="QComboBox" name="chinese">
-      <property name="editable">
-       <bool>true</bool>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="1">
-     <widget class="QComboBox" name="maths">
-      <property name="editable">
-       <bool>true</bool>
-      </property>
-     </widget>
-    </item>
     <item row="7" column="0">
      <widget class="QLabel" name="label_8">
       <property name="text">
@@ -85,24 +71,10 @@
       </property>
      </widget>
     </item>
-    <item row="5" column="1">
-     <widget class="QComboBox" name="physics">
+    <item row="6" column="1">
+     <widget class="QComboBox" name="chemistry">
       <property name="editable">
        <bool>true</bool>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="0">
-     <widget class="QLabel" name="label_6">
-      <property name="text">
-       <string>Physics</string>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="0">
-     <widget class="QLabel" name="label_2">
-      <property name="text">
-       <string>Sum Score</string>
       </property>
      </widget>
     </item>
@@ -113,8 +85,8 @@
       </property>
      </widget>
     </item>
-    <item row="6" column="1">
-     <widget class="QComboBox" name="chemistry">
+    <item row="2" column="1">
+     <widget class="QComboBox" name="maths">
       <property name="editable">
        <bool>true</bool>
       </property>
@@ -127,13 +99,6 @@
       </property>
      </widget>
     </item>
-    <item row="6" column="0">
-     <widget class="QLabel" name="label_7">
-      <property name="text">
-       <string>Chemistry</string>
-      </property>
-     </widget>
-    </item>
     <item row="0" column="1">
      <widget class="QComboBox" name="sum">
       <property name="editable">
@@ -141,17 +106,10 @@
       </property>
      </widget>
     </item>
-    <item row="2" column="0">
-     <widget class="QLabel" name="label_4">
+    <item row="5" column="0">
+     <widget class="QLabel" name="label_6">
       <property name="text">
-       <string>Mathematics</string>
-      </property>
-     </widget>
-    </item>
-    <item row="7" column="1">
-     <widget class="QComboBox" name="politics">
-      <property name="editable">
-       <bool>true</bool>
+       <string>Physics</string>
       </property>
      </widget>
     </item>
@@ -162,28 +120,64 @@
       </property>
      </widget>
     </item>
+    <item row="5" column="1">
+     <widget class="QComboBox" name="physics">
+      <property name="editable">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="7" column="1">
+     <widget class="QComboBox" name="politics">
+      <property name="editable">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QComboBox" name="chinese">
+      <property name="editable">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="0">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string>Sum Score</string>
+      </property>
+     </widget>
+    </item>
+    <item row="6" column="0">
+     <widget class="QLabel" name="label_7">
+      <property name="text">
+       <string>Chemistry</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="0">
+     <widget class="QLabel" name="label_4">
+      <property name="text">
+       <string>Mathematics</string>
+      </property>
+     </widget>
+    </item>
+    <item row="8" column="0">
+     <widget class="QLabel" name="combinedscore_display">
+      <property name="text">
+       <string>Combined Score:</string>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
-  <widget class="QLabel" name="combinedscore_display">
+  <widget class="QWidget" name="layoutWidget">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>254</y>
+     <y>310</y>
      <width>381</width>
-     <height>31</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Combined Score:</string>
-   </property>
-  </widget>
-  <widget class="QWidget" name="">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>290</y>
-     <width>381</width>
-     <height>156</height>
+     <height>184</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout_2">
@@ -197,20 +191,6 @@
       </property>
      </widget>
     </item>
-    <item row="1" column="0">
-     <widget class="QRadioButton" name="radioButton_2">
-      <property name="text">
-       <string>Directional</string>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="0">
-     <widget class="QRadioButton" name="radioButton_3">
-      <property name="text">
-       <string>Alter</string>
-      </property>
-     </widget>
-    </item>
     <item row="3" column="0">
      <widget class="QRadioButton" name="radioButton_4">
       <property name="text">
@@ -218,10 +198,24 @@
       </property>
      </widget>
     </item>
+    <item row="1" column="0">
+     <widget class="QRadioButton" name="radioButton_2">
+      <property name="text">
+       <string>Directional</string>
+      </property>
+     </widget>
+    </item>
     <item row="4" column="0">
      <widget class="QRadioButton" name="radioButton_5">
       <property name="text">
        <string>Vocational Schools</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="0">
+     <widget class="QRadioButton" name="radioButton_3">
+      <property name="text">
+       <string>Alter</string>
       </property>
      </widget>
     </item>
